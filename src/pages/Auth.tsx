@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Google } from "lucide-react";
+import { Mail } from "lucide-react";
 
 const Auth = () => {
   const [email, setEmail] = useState("");
@@ -114,7 +114,7 @@ const Auth = () => {
               disabled={isLoading}
               className="w-full flex items-center justify-center gap-2"
             >
-              <Google size={20} />
+              <Mail size={20} />
               <span>Continuar com Google</span>
             </Button>
 
