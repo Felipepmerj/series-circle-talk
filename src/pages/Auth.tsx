@@ -32,26 +32,14 @@ const Auth = () => {
     try {
       setLoading(true);
       setAuthError(null);
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo: `${window.location.origin}/auth`,
-        },
+      
+      // Show warning about Google provider not being enabled
+      toast.error("O provedor Google não está habilitado", {
+        description: "Por favor, use email e senha para fazer login ou entre em contato com o administrador para habilitar o login com Google",
+        duration: 5000,
       });
-
-      if (error) {
-        if (error.message.includes("provider is not enabled")) {
-          setAuthError("O provedor Google não está habilitado. Por favor, use email e senha ou habilite o provedor no painel do Supabase.");
-          toast.error("Provedor Google não habilitado", {
-            description: "Use email e senha para login ou habilite o Google Auth no painel do Supabase",
-          });
-        } else {
-          setAuthError(error.message);
-          toast.error("Erro ao fazer login com Google", {
-            description: error.message,
-          });
-        }
-      }
+      
+      setAuthError("O provedor Google não está habilitado. Por favor, use email e senha ou entre em contato com o administrador para habilitar o Google Auth no painel do Supabase.");
     } catch (error) {
       console.error("Erro de login:", error);
       toast.error("Ocorreu um erro durante o login");
