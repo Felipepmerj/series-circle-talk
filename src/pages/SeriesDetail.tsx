@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
-import { Calendar, Clock, Plus, Check, Star } from "lucide-react";
+import { Calendar, Clock, Plus, Check, Star, Play } from "lucide-react";
 import Header from "../components/Header";
 import SeriesDetailHeader from "../components/SeriesDetailHeader";
 import RatingStars from "../components/RatingStars";
@@ -11,18 +11,22 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { useAuth } from "../contexts/AuthContext";
+import { useSeriesStatus } from "../hooks/useSeriesStatus";
+import SeriesStatusBadge from "../components/SeriesStatusBadge";
+import { toast } from "sonner";
 
 const SeriesDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const [searchParams] = useSearchParams();
+  const { user } = useAuth();
   
   const [series, setSeries] = useState<Series | null>(null);
   const [loading, setLoading] = useState(true);
   const [reviews, setReviews] = useState<(SeriesReview & { user: User })[]>([]);
   
-  // Demo user - In a real app, this would come from authentication
-  const currentUserId = "user1";
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  // Hook para gerenciar o status da série
+  const { status, updateStatus, loading: statusLoading } = useSeriesStatus(Number(id));
   
   // Review dialog states
   const [showReviewDialog, setShowReviewDialog] = useState(false);
@@ -34,9 +38,8 @@ const SeriesDetail: React.FC = () => {
   const [showWatchlistDialog, setShowWatchlistDialog] = useState(false);
   const [watchlistNote, setWatchlistNote] = useState("");
   
-  // Check if the user has already reviewed or added to watchlist
+  // Check if the user has already reviewed
   const [userReview, setUserReview] = useState<SeriesReview | null>(null);
-  const [inWatchlist, setInWatchlist] = useState(false);
   
   useEffect(() => {
     const fetchSeriesDetails = async () => {
@@ -52,8 +55,7 @@ const SeriesDetail: React.FC = () => {
           
           // Fetch all users for reviews
           const usersData = await api.getUsers();
-          const user = usersData.find(u => u.id === currentUserId);
-          setCurrentUser(user || null);
+          const currentUser = usersData.find(u => u.id === (user?.id || 'user1'));
           
           // Collect reviews from all users
           const allReviews: (SeriesReview & { user: User })[] = [];
@@ -69,7 +71,7 @@ const SeriesDetail: React.FC = () => {
             allReviews.push(...userReviews);
             
             // Check if current user has reviewed
-            if (user.id === currentUserId) {
+            if (currentUser && user.id === currentUser.id) {
               const review = user.watchedSeries.find(r => r.seriesId === Number(id));
               if (review) {
                 setUserReview(review);
@@ -80,9 +82,8 @@ const SeriesDetail: React.FC = () => {
                 }
               }
               
-              // Check if in watchlist
+              // Watchlist note
               const watchlistItem = user.watchlist.find(w => w.seriesId === Number(id));
-              setInWatchlist(!!watchlistItem);
               if (watchlistItem?.note) {
                 setWatchlistNote(watchlistItem.note);
               }
@@ -104,7 +105,7 @@ const SeriesDetail: React.FC = () => {
     };
     
     fetchSeriesDetails();
-  }, [id, currentUserId]);
+  }, [id, user?.id]);
   
   // Check if action is specified in URL
   useEffect(() => {
@@ -117,26 +118,32 @@ const SeriesDetail: React.FC = () => {
   }, [searchParams]);
   
   const handleAddReview = async () => {
-    if (!series) return;
+    if (!series || !user) {
+      toast.error("Você precisa estar logado para avaliar");
+      return;
+    }
     
     try {
+      // Atualizar o status para "assistido"
+      await updateStatus("assistido");
+      
       const newReview = await api.addReview(
-        currentUserId,
+        user.id || 'user1',
         series.id,
         rating,
         comment,
         watchedDate
       );
       
-      // In a real app, this would update the server and then refresh data
-      // For now, we'll update the UI directly
+      // Update the reviews list
       setUserReview(newReview);
       
-      // Update the reviews list
+      // Atualizar a lista de reviews
+      const currentUser = await api.getUserById(user.id || 'user1');
       if (currentUser) {
         const updatedReviews = [...reviews];
         const existingReviewIndex = updatedReviews.findIndex(
-          r => r.userId === currentUserId && r.seriesId === series.id
+          r => r.userId === user.id && r.seriesId === series.id
         );
         
         if (existingReviewIndex >= 0) {
@@ -157,26 +164,48 @@ const SeriesDetail: React.FC = () => {
       }
       
       setShowReviewDialog(false);
+      toast.success("Avaliação adicionada com sucesso");
     } catch (error) {
       console.error("Error adding review:", error);
+      toast.error("Erro ao adicionar avaliação");
     }
   };
   
   const handleAddToWatchlist = async () => {
-    if (!series) return;
+    if (!series || !user) {
+      toast.error("Você precisa estar logado para adicionar à lista");
+      return;
+    }
     
     try {
+      // Atualizar o status para "watchlist"
+      await updateStatus("watchlist");
+      
       const newWatchlistItem = await api.addToWatchlist(
-        currentUserId,
+        user.id || 'user1',
         series.id,
         watchlistNote
       );
       
-      // In a real app, this would update the server
-      setInWatchlist(true);
       setShowWatchlistDialog(false);
+      toast.success("Adicionado à sua lista com sucesso");
     } catch (error) {
       console.error("Error adding to watchlist:", error);
+      toast.error("Erro ao adicionar à lista");
+    }
+  };
+  
+  const handleSetWatching = async () => {
+    if (!user) {
+      toast.error("Você precisa estar logado para realizar esta ação");
+      return;
+    }
+    
+    try {
+      await updateStatus("assistindo");
+    } catch (error) {
+      console.error("Error updating status:", error);
+      toast.error("Erro ao atualizar status");
     }
   };
   
@@ -199,6 +228,13 @@ const SeriesDetail: React.FC = () => {
       
       <SeriesDetailHeader series={series} />
       
+      {/* Status Badge */}
+      {status && (
+        <div className="px-4 mt-2">
+          <SeriesStatusBadge seriesId={series.id} />
+        </div>
+      )}
+      
       {/* Synopsis */}
       <div className="px-4 mt-4">
         <h2 className="text-lg font-medium mb-2">Sinopse</h2>
@@ -207,27 +243,28 @@ const SeriesDetail: React.FC = () => {
       
       {/* Action buttons */}
       <div className="px-4 mt-6 flex gap-3">
-        {userReview ? (
+        {status === "assistido" ? (
           <Button 
             variant="outline" 
             className="flex-1 flex items-center justify-center"
             onClick={() => setShowReviewDialog(true)}
           >
             <Check size={16} className="mr-2" /> 
-            Já Assisti ({userReview.rating}/10)
+            Já Assisti{userReview ? ` (${userReview.rating}/10)` : ""}
           </Button>
         ) : (
           <Button 
             variant="default" 
             className="flex-1 flex items-center justify-center"
             onClick={() => setShowReviewDialog(true)}
+            disabled={statusLoading}
           >
             <Check size={16} className="mr-2" /> 
             Marcar como assistido
           </Button>
         )}
         
-        {inWatchlist ? (
+        {status === "watchlist" ? (
           <Button 
             variant="outline" 
             className="flex-1 flex items-center justify-center"
@@ -236,14 +273,35 @@ const SeriesDetail: React.FC = () => {
             <Check size={16} className="mr-2" /> 
             Na sua lista
           </Button>
+        ) : status === "assistindo" ? (
+          <Button 
+            variant="outline" 
+            className="flex-1 flex items-center justify-center"
+            onClick={() => setShowWatchlistDialog(true)}
+          >
+            <Play size={16} className="mr-2" /> 
+            Assistindo
+          </Button>
         ) : (
           <Button 
             variant="secondary" 
             className="flex-1 flex items-center justify-center"
             onClick={() => setShowWatchlistDialog(true)}
+            disabled={statusLoading}
           >
             <Plus size={16} className="mr-2" /> 
             Quero assistir
+          </Button>
+        )}
+        
+        {status !== "assistindo" && (
+          <Button
+            variant={status === "assistindo" ? "outline" : "secondary"}
+            className="flex items-center justify-center"
+            onClick={handleSetWatching}
+            disabled={statusLoading || status === "assistindo"}
+          >
+            <Play size={16} /> 
           </Button>
         )}
       </div>
@@ -257,7 +315,7 @@ const SeriesDetail: React.FC = () => {
             {reviews.map(review => (
               <div 
                 key={review.id} 
-                className={`p-4 rounded-lg border ${review.userId === currentUserId ? 'bg-accent' : 'bg-white'}`}
+                className={`p-4 rounded-lg border ${review.userId === (user?.id || 'user1') ? 'bg-accent' : 'bg-white'}`}
               >
                 <div className="flex items-center">
                   <img 
@@ -337,7 +395,13 @@ const SeriesDetail: React.FC = () => {
       <Dialog open={showWatchlistDialog} onOpenChange={setShowWatchlistDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Adicionar à sua lista</DialogTitle>
+            <DialogTitle>
+              {status === "watchlist" 
+                ? "Atualizar nota" 
+                : status === "assistindo"
+                ? "Atualizar status de 'Assistindo'"
+                : "Adicionar à sua lista"}
+            </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div>
@@ -349,9 +413,24 @@ const SeriesDetail: React.FC = () => {
               />
             </div>
             
-            <Button onClick={handleAddToWatchlist} className="w-full">
-              {inWatchlist ? "Atualizar nota" : "Adicionar à lista"}
-            </Button>
+            <div className="flex gap-3">
+              <Button 
+                onClick={handleAddToWatchlist} 
+                className="flex-1"
+                variant={status === "watchlist" ? "outline" : "default"}
+              >
+                {status === "watchlist" ? "Atualizar nota" : "Quero assistir"}
+              </Button>
+              
+              <Button 
+                onClick={handleSetWatching} 
+                className="flex-1"
+                variant={status === "assistindo" ? "outline" : "secondary"}
+              >
+                <Play size={16} className="mr-2" /> 
+                {status === "assistindo" ? "Já estou assistindo" : "Estou assistindo"}
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
