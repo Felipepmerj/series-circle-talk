@@ -1,0 +1,256 @@
+
+import React, { useEffect, useState } from "react";
+import { useParams } from "react-router-dom";
+import { Link } from "react-router-dom";
+import { Home, Search, ListChecks, ListPlus, Users, Grid, List } from "lucide-react";
+import Header from "../components/Header";
+import SeriesCard from "../components/SeriesCard";
+import { api } from "../services/api";
+import { User, Series } from "../types/Series";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
+const Profile: React.FC = () => {
+  const { userId = "user1" } = useParams<{ userId: string }>();
+  const [user, setUser] = useState<User | null>(null);
+  const [watchedSeries, setWatchedSeries] = useState<(Series & { userRating: number, userComment: string })[]>([]);
+  const [watchlistSeries, setWatchlistSeries] = useState<(Series & { userNote?: string })[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  
+  useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        const userData = await api.getUserById(userId);
+        
+        if (userData) {
+          setUser(userData);
+          
+          // Fetch watched series details
+          const watched = await Promise.all(
+            userData.watchedSeries.map(async review => {
+              const series = await api.getSeriesById(review.seriesId);
+              return series ? {
+                ...series,
+                userRating: review.rating,
+                userComment: review.comment
+              } : null;
+            })
+          );
+          
+          // Fetch watchlist series details
+          const watchlist = await Promise.all(
+            userData.watchlist.map(async item => {
+              const series = await api.getSeriesById(item.seriesId);
+              return series ? {
+                ...series,
+                userNote: item.note
+              } : null;
+            })
+          );
+          
+          setWatchedSeries(watched.filter(Boolean) as (Series & { userRating: number, userComment: string })[]);
+          setWatchlistSeries(watchlist.filter(Boolean) as (Series & { userNote?: string })[]);
+        }
+      } catch (error) {
+        console.error("Error fetching user data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchUserData();
+  }, [userId]);
+  
+  if (loading) {
+    return (
+      <div className="app-container">
+        <Header title="Carregando..." showBackButton />
+        <div className="animate-pulse space-y-4 mt-4">
+          <div className="h-24 bg-muted rounded-lg"></div>
+          <div className="h-4 bg-muted rounded w-3/4"></div>
+          <div className="h-4 bg-muted rounded w-1/2"></div>
+        </div>
+      </div>
+    );
+  }
+  
+  if (!user) {
+    return (
+      <div className="app-container">
+        <Header title="Perfil não encontrado" showBackButton />
+        <div className="text-center py-8">
+          <p>Usuário não encontrado.</p>
+          <Link to="/" className="text-primary mt-2 inline-block">
+            Voltar para a página inicial
+          </Link>
+        </div>
+      </div>
+    );
+  }
+  
+  return (
+    <div className="app-container">
+      <Header title="Perfil" showBackButton />
+      
+      {/* Profile header */}
+      <div className="flex items-center p-4">
+        <img 
+          src={user.profilePic || "/placeholder.svg"} 
+          alt={user.name}
+          className="w-16 h-16 rounded-full object-cover"
+        />
+        <div className="ml-4">
+          <h2 className="text-xl font-semibold">{user.name}</h2>
+          <p className="text-muted-foreground">
+            <span>{watchedSeries.length} séries assistidas</span>
+            <span className="mx-2">•</span>
+            <span>{watchlistSeries.length} na lista</span>
+          </p>
+        </div>
+      </div>
+      
+      {/* Series tabs */}
+      <Tabs defaultValue="watched" className="mt-4">
+        <div className="flex justify-between items-center px-2">
+          <TabsList>
+            <TabsTrigger value="watched">Já Assistiu</TabsTrigger>
+            <TabsTrigger value="watchlist">Quer Assistir</TabsTrigger>
+          </TabsList>
+          
+          <div className="flex space-x-1">
+            <button 
+              onClick={() => setViewMode('grid')} 
+              className={`p-1 rounded-md ${viewMode === 'grid' ? 'bg-muted' : ''}`}
+              aria-label="Visualização em grade"
+            >
+              <Grid size={18} />
+            </button>
+            <button 
+              onClick={() => setViewMode('list')} 
+              className={`p-1 rounded-md ${viewMode === 'list' ? 'bg-muted' : ''}`}
+              aria-label="Visualização em lista"
+            >
+              <List size={18} />
+            </button>
+          </div>
+        </div>
+        
+        <TabsContent value="watched">
+          {watchedSeries.length > 0 ? (
+            viewMode === 'grid' ? (
+              <div className="grid grid-cols-2 gap-4 mt-4">
+                {watchedSeries.map(series => (
+                  <SeriesCard
+                    key={series.id}
+                    series={series}
+                    userRating={series.userRating}
+                    comment={series.userComment}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="space-y-3 mt-4">
+                {watchedSeries.map(series => (
+                  <Link 
+                    key={series.id}
+                    to={`/series/${series.id}`}
+                    className="flex items-center p-3 bg-white rounded-lg shadow"
+                  >
+                    <img 
+                      src={api.getImageUrl(series.poster_path, "w92")} 
+                      alt={series.name}
+                      className="w-12 h-18 object-cover rounded"
+                    />
+                    <div className="ml-3 flex-1">
+                      <h3 className="font-medium">{series.name}</h3>
+                      <div className="flex items-center text-xs space-x-2 mt-1">
+                        <span className="text-yellow-500 font-bold">{series.userRating}/10</span>
+                        <span className="text-muted-foreground line-clamp-1">{series.userComment}</span>
+                      </div>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            )
+          ) : (
+            <div className="text-center py-8">
+              <p className="text-muted-foreground">Nenhuma série assistida.</p>
+            </div>
+          )}
+        </TabsContent>
+        
+        <TabsContent value="watchlist">
+          {watchlistSeries.length > 0 ? (
+            viewMode === 'grid' ? (
+              <div className="grid grid-cols-2 gap-4 mt-4">
+                {watchlistSeries.map(series => (
+                  <SeriesCard
+                    key={series.id}
+                    series={series}
+                    showRating={false}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="space-y-3 mt-4">
+                {watchlistSeries.map(series => (
+                  <Link 
+                    key={series.id}
+                    to={`/series/${series.id}`}
+                    className="flex items-center p-3 bg-white rounded-lg shadow"
+                  >
+                    <img 
+                      src={api.getImageUrl(series.poster_path, "w92")} 
+                      alt={series.name}
+                      className="w-12 h-18 object-cover rounded"
+                    />
+                    <div className="ml-3">
+                      <h3 className="font-medium">{series.name}</h3>
+                      {series.userNote && (
+                        <p className="text-xs text-muted-foreground mt-1 line-clamp-1">
+                          "{series.userNote}"
+                        </p>
+                      )}
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            )
+          ) : (
+            <div className="text-center py-8">
+              <p className="text-muted-foreground">Nenhuma série na lista.</p>
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
+      
+      {/* Bottom Navigation */}
+      <div className="bottom-nav">
+        <div className="bottom-nav-content">
+          <Link to="/" className="nav-tab inactive p-3">
+            <Home size={22} />
+            <span>Início</span>
+          </Link>
+          <Link to="/search" className="nav-tab inactive p-3">
+            <Search size={22} />
+            <span>Busca</span>
+          </Link>
+          <Link to="/watched" className="nav-tab active p-3">
+            <ListChecks size={22} />
+            <span>Assistidos</span>
+          </Link>
+          <Link to="/watchlist" className="nav-tab inactive p-3">
+            <ListPlus size={22} />
+            <span>Quero ver</span>
+          </Link>
+          <Link to="/invite" className="nav-tab inactive p-3">
+            <Users size={22} />
+            <span>Amigos</span>
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default Profile;
