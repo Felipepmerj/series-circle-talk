@@ -15,7 +15,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { useSeriesStatus } from "../hooks/useSeriesStatus";
 import SeriesStatusBadge from "../components/SeriesStatusBadge";
 import { toast } from "sonner";
-import { SeriesStatus } from "../services/seriesStatusService";
+import { SeriesStatus, seriesStatusService } from "../services/seriesStatusService";
 
 const SeriesDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
