@@ -14,32 +14,34 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [userProfile, setUserProfile] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Configurar o listener de mudança de estado de autenticação
+    // Set up the auth state change listener first
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
         
-        // Se o usuário fizer login, buscar o perfil
+        // If user signs in, fetch profile using setTimeout to prevent deadlock
         if (session?.user && event === "SIGNED_IN") {
-          fetchUserProfile(session.user.id);
+          setTimeout(() => {
+            fetchUserProfile(session.user.id);
+          }, 0);
         }
         
-        // Se o usuário fizer logout, limpar o perfil
+        // Clear profile on sign out
         if (event === "SIGNED_OUT") {
           setUserProfile(null);
         }
       }
     );
 
-    // Verificar sessão atual ao carregar
+    // Then check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
