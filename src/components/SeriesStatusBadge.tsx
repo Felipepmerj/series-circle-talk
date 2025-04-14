@@ -50,7 +50,7 @@ const SeriesStatusBadge: React.FC<SeriesStatusBadgeProps> = ({ seriesId, onStatu
     assistindo: {
       icon: <Play size={14} />,
       text: "Assistindo",
-      variant: "default" as const
+      variant: "warning" as const
     },
     assistido: {
       icon: <Check size={14} />,
