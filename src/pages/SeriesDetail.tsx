@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { Calendar, Clock, Plus, Check, Star, Play } from "lucide-react";
@@ -26,20 +25,16 @@ const SeriesDetail: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [reviews, setReviews] = useState<(SeriesReview & { user: User })[]>([]);
   
-  // Hook para gerenciar o status da série
   const { status, updateStatus, loading: statusLoading } = useSeriesStatus(Number(id));
   
-  // Review dialog states
   const [showReviewDialog, setShowReviewDialog] = useState(false);
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState("");
   const [watchedDate, setWatchedDate] = useState("");
   
-  // Watchlist dialog states
   const [showWatchlistDialog, setShowWatchlistDialog] = useState(false);
   const [watchlistNote, setWatchlistNote] = useState("");
   
-  // Check if the user has already reviewed
   const [userReview, setUserReview] = useState<SeriesReview | null>(null);
   
   useEffect(() => {
@@ -49,16 +44,13 @@ const SeriesDetail: React.FC = () => {
       setLoading(true);
       
       try {
-        // Fetch series details
         const seriesData = await api.getSeriesById(Number(id));
         if (seriesData) {
           setSeries(seriesData);
           
-          // Fetch all users for reviews
           const usersData = await api.getUsers();
           const currentUser = usersData.find(u => u.id === (user?.id || 'user1'));
           
-          // Collect reviews from all users
           const allReviews: (SeriesReview & { user: User })[] = [];
           
           for (const user of usersData) {
@@ -71,7 +63,6 @@ const SeriesDetail: React.FC = () => {
               
             allReviews.push(...userReviews);
             
-            // Check if current user has reviewed
             if (currentUser && user.id === currentUser.id) {
               const review = user.watchedSeries.find(r => r.seriesId === Number(id));
               if (review) {
@@ -83,7 +74,6 @@ const SeriesDetail: React.FC = () => {
                 }
               }
               
-              // Watchlist note
               const watchlistItem = user.watchlist.find(w => w.seriesId === Number(id));
               if (watchlistItem?.note) {
                 setWatchlistNote(watchlistItem.note);
@@ -91,7 +81,6 @@ const SeriesDetail: React.FC = () => {
             }
           }
           
-          // Sort by most recent
           allReviews.sort((a, b) => 
             new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
           );
@@ -108,7 +97,6 @@ const SeriesDetail: React.FC = () => {
     fetchSeriesDetails();
   }, [id, user?.id]);
   
-  // Check if action is specified in URL
   useEffect(() => {
     const action = searchParams.get('action');
     if (action === 'watched') {
@@ -125,7 +113,6 @@ const SeriesDetail: React.FC = () => {
     }
     
     try {
-      // Atualizar o status para "assistido"
       await updateStatus("assistido");
       
       const newReview = await api.addReview(
@@ -136,10 +123,8 @@ const SeriesDetail: React.FC = () => {
         watchedDate
       );
       
-      // Update the reviews list
       setUserReview(newReview);
       
-      // Atualizar a lista de reviews
       const currentUser = await api.getUserById(user.id || 'user1');
       if (currentUser) {
         const updatedReviews = [...reviews];
@@ -148,13 +133,11 @@ const SeriesDetail: React.FC = () => {
         );
         
         if (existingReviewIndex >= 0) {
-          // Replace existing review
           updatedReviews[existingReviewIndex] = {
             ...newReview,
             user: currentUser
           };
         } else {
-          // Add new review
           updatedReviews.unshift({
             ...newReview,
             user: currentUser
@@ -179,7 +162,6 @@ const SeriesDetail: React.FC = () => {
     }
     
     try {
-      // Atualizar o status para "watchlist"
       await updateStatus("watchlist");
       
       const newWatchlistItem = await api.addToWatchlist(
@@ -229,20 +211,17 @@ const SeriesDetail: React.FC = () => {
       
       <SeriesDetailHeader series={series} />
       
-      {/* Status Badge */}
       {status && (
         <div className="px-4 mt-2">
           <SeriesStatusBadge seriesId={series.id} />
         </div>
       )}
       
-      {/* Synopsis */}
       <div className="px-4 mt-4">
         <h2 className="text-lg font-medium mb-2">Sinopse</h2>
         <p className="text-sm">{series.overview}</p>
       </div>
       
-      {/* Action buttons */}
       <div className="px-4 mt-6 flex gap-3">
         {status === "assistido" ? (
           <Button 
@@ -307,7 +286,6 @@ const SeriesDetail: React.FC = () => {
         )}
       </div>
       
-      {/* Friends reviews */}
       <div className="mt-8 px-4">
         <h2 className="text-lg font-medium mb-4">O que seus amigos acharam</h2>
         
@@ -349,7 +327,6 @@ const SeriesDetail: React.FC = () => {
         )}
       </div>
       
-      {/* Review Dialog */}
       <Dialog open={showReviewDialog} onOpenChange={setShowReviewDialog}>
         <DialogContent>
           <DialogHeader>
@@ -392,7 +369,6 @@ const SeriesDetail: React.FC = () => {
         </DialogContent>
       </Dialog>
       
-      {/* Watchlist Dialog */}
       <Dialog open={showWatchlistDialog} onOpenChange={setShowWatchlistDialog}>
         <DialogContent>
           <DialogHeader>
