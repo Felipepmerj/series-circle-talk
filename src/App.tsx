@@ -9,6 +9,7 @@ import Search from "./pages/Search";
 import SeriesDetail from "./pages/SeriesDetail";
 import Profile from "./pages/Profile";
 import WatchList from "./pages/WatchList";
+import Ranking from "./pages/Ranking";
 import Invite from "./pages/Invite";
 import NotFound from "./pages/NotFound";
 import Auth from "./pages/Auth";
@@ -28,6 +29,7 @@ const App = () => (
         <Route path="/profile/:userId?" element={<Profile />} />
         <Route path="/watched" element={<Profile />} />
         <Route path="/watchlist" element={<WatchList />} />
+        <Route path="/ranking" element={<Ranking />} />
         <Route path="/invite" element={<Invite />} />
         <Route path="/auth" element={<Auth />} />
         <Route path="/register" element={<Register />} />

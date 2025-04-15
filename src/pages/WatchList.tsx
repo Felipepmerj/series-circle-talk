@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Home, Search, ListChecks, ListPlus, Users } from "lucide-react";
+import { Home, Search, ListVideo, TrendingUp, Users } from "lucide-react";
 import Header from "../components/Header";
 import SeriesCard from "../components/SeriesCard";
 import { api } from "../services/api";
@@ -80,12 +80,12 @@ const WatchList: React.FC = () => {
             <span>Busca</span>
           </Link>
           <Link to="/watched" className="nav-tab inactive p-3">
-            <ListChecks size={22} />
-            <span>Assistidos</span>
+            <ListVideo size={22} />
+            <span>Minhas Séries</span>
           </Link>
-          <Link to="/watchlist" className="nav-tab active p-3">
-            <ListPlus size={22} />
-            <span>Quero ver</span>
+          <Link to="/ranking" className="nav-tab inactive p-3">
+            <TrendingUp size={22} />
+            <span>Ranking</span>
           </Link>
           <Link to="/invite" className="nav-tab inactive p-3">
             <Users size={22} />
