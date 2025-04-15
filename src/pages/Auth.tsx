@@ -1,5 +1,5 @@
 
-import React from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,7 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Header from "../components/Header";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 const loginSchema = z.object({
   email: z.string().email({ message: "Email inválido" }),
@@ -18,6 +19,7 @@ const loginSchema = z.object({
 
 const Auth = () => {
   const navigate = useNavigate();
+  const [isLoading, setIsLoading] = useState(false);
   
   const form = useForm<z.infer<typeof loginSchema>>({
     resolver: zodResolver(loginSchema),
@@ -29,13 +31,24 @@ const Auth = () => {
 
   const onSubmit = async (values: z.infer<typeof loginSchema>) => {
     try {
-      // Simular autenticação bem-sucedida
+      setIsLoading(true);
+      
+      // Autenticar usando Supabase
+      const { error } = await supabase.auth.signInWithPassword({
+        email: values.email,
+        password: values.password,
+      });
+
+      if (error) throw error;
+      
       toast.success("Login realizado com sucesso!");
       // Redirecionamento após login bem-sucedido
       navigate("/");
     } catch (error) {
-      toast.error("Erro ao fazer login. Tente novamente.");
       console.error("Erro de login:", error);
+      toast.error("Erro ao fazer login. Verifique suas credenciais e tente novamente.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -79,8 +92,8 @@ const Auth = () => {
                 )}
               />
               
-              <Button type="submit" className="w-full">
-                Entrar
+              <Button type="submit" className="w-full" disabled={isLoading}>
+                {isLoading ? "Entrando..." : "Entrar"}
               </Button>
             </form>
           </Form>
