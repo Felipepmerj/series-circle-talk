@@ -1,6 +1,7 @@
 
 import React, { useState } from "react";
 import { Home, Search, ListChecks, TrendingUp, Users, Mail, Share2, Copy, Check, MessageSquare } from "lucide-react";
+import { Link } from "react-router-dom";  // Add this import
 import Header from "../components/Header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
