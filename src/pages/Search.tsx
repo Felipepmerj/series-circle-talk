@@ -1,7 +1,6 @@
 
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { Home, Search as SearchIcon, ListChecks, ListPlus, Users } from "lucide-react";
+import { Home, Search as SearchIcon, ListVideo, TrendingUp, Users } from "lucide-react";
 import { Link } from "react-router-dom";
 import Header from "../components/Header";
 import { api } from "../services/api";
@@ -11,7 +10,6 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
 const Search: React.FC = () => {
-  const navigate = useNavigate();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<Series[]>([]);
   const [loading, setLoading] = useState(false);
@@ -33,14 +31,6 @@ const Search: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
-  
-  const handleAddToWatchlist = (seriesId: number) => {
-    navigate(`/series/${seriesId}?action=watchlist`);
-  };
-  
-  const handleAddToWatched = (seriesId: number) => {
-    navigate(`/series/${seriesId}?action=watched`);
   };
   
   return (
@@ -74,7 +64,6 @@ const Search: React.FC = () => {
               <SeriesSearchResult
                 key={series.id}
                 series={series}
-                onAddToWatchlist={() => handleAddToWatchlist(series.id)}
               />
             ))
           ) : (
@@ -104,12 +93,12 @@ const Search: React.FC = () => {
             <span>Busca</span>
           </Link>
           <Link to="/watched" className="nav-tab inactive p-3">
-            <ListChecks size={22} />
-            <span>Assistidos</span>
+            <ListVideo size={22} />
+            <span>Minhas Séries</span>
           </Link>
-          <Link to="/watchlist" className="nav-tab inactive p-3">
-            <ListPlus size={22} />
-            <span>Quero ver</span>
+          <Link to="/ranking" className="nav-tab inactive p-3">
+            <TrendingUp size={22} />
+            <span>Ranking</span>
           </Link>
           <Link to="/invite" className="nav-tab inactive p-3">
             <Users size={22} />
