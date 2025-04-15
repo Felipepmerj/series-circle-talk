@@ -14,6 +14,7 @@ import Invite from "./pages/Invite";
 import NotFound from "./pages/NotFound";
 import Auth from "./pages/Auth";
 import Register from "./pages/Register";
+import UserProfile from "./pages/UserProfile";
 
 const queryClient = new QueryClient();
 
@@ -27,6 +28,7 @@ const App = () => (
         <Route path="/search" element={<Search />} />
         <Route path="/series/:id" element={<SeriesDetail />} />
         <Route path="/profile/:userId?" element={<Profile />} />
+        <Route path="/user-profile" element={<UserProfile />} />
         <Route path="/watched" element={<Profile />} />
         <Route path="/watchlist" element={<WatchList />} />
         <Route path="/ranking" element={<Ranking />} />

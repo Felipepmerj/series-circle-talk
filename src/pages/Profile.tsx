@@ -1,21 +1,37 @@
 
 import React, { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { Link } from "react-router-dom";
-import { Home, Search, ListChecks, ListPlus, Users, Grid, List } from "lucide-react";
+import { Home, Search, ListChecks, ListPlus, Users, Grid, List, Settings } from "lucide-react";
 import Header from "../components/Header";
 import SeriesCard from "../components/SeriesCard";
 import { api } from "../services/api";
 import { User, Series } from "../types/Series";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import { supabase } from "@/integrations/supabase/client";
 
 const Profile: React.FC = () => {
+  const navigate = useNavigate();
   const { userId = "user1" } = useParams<{ userId: string }>();
   const [user, setUser] = useState<User | null>(null);
   const [watchedSeries, setWatchedSeries] = useState<(Series & { userRating: number, userComment: string })[]>([]);
   const [watchlistSeries, setWatchlistSeries] = useState<(Series & { userNote?: string })[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  
+  // Verificar se o usuário está autenticado
+  useEffect(() => {
+    const checkAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        setCurrentUserId(session.user.id);
+      }
+    };
+    
+    checkAuth();
+  }, []);
   
   useEffect(() => {
     const fetchUserData = async () => {
@@ -61,6 +77,22 @@ const Profile: React.FC = () => {
     fetchUserData();
   }, [userId]);
   
+  // Botão para acessar o perfil do usuário
+  const renderEditProfileButton = () => {
+    if (!currentUserId) return null;
+    
+    return (
+      <Button 
+        variant="outline" 
+        size="sm" 
+        className="ml-auto" 
+        onClick={() => navigate("/user-profile")}
+      >
+        <Settings size={16} className="mr-1" /> Editar Perfil
+      </Button>
+    );
+  };
+  
   if (loading) {
     return (
       <div className="app-container">
@@ -99,7 +131,7 @@ const Profile: React.FC = () => {
           alt={user.name}
           className="w-16 h-16 rounded-full object-cover"
         />
-        <div className="ml-4">
+        <div className="ml-4 flex-1">
           <h2 className="text-xl font-semibold">{user.name}</h2>
           <p className="text-muted-foreground">
             <span>{watchedSeries.length} séries assistidas</span>
@@ -107,6 +139,7 @@ const Profile: React.FC = () => {
             <span>{watchlistSeries.length} na lista</span>
           </p>
         </div>
+        {renderEditProfileButton()}
       </div>
       
       {/* Series tabs */}
