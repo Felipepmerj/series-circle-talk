@@ -1,4 +1,3 @@
-
 export interface Series {
   id: number;
   name: string;
@@ -9,6 +8,8 @@ export interface Series {
   first_air_date: string;
   genres: Genre[];
   vote_average: number;
+  number_of_episodes?: number;
+  number_of_seasons?: number;
 }
 
 export interface Genre {
