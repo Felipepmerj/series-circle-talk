@@ -1,11 +1,12 @@
 
 import React, { useState } from "react";
-import { Link } from "react-router-dom";
-import { Home, Search, ListChecks, ListPlus, Users, Mail, Share2, Copy, Check } from "lucide-react";
+import { Home, Search, ListChecks, TrendingUp, Users, Mail, Share2, Copy, Check, MessageSquare } from "lucide-react";
 import Header from "../components/Header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { api } from "../services/api";
+import { toast } from "sonner";
+import BottomNav from "../components/BottomNav";
 
 const Invite: React.FC = () => {
   const [email, setEmail] = useState("");
@@ -18,20 +19,28 @@ const Invite: React.FC = () => {
     // In a real app, this would send an email invitation
     // For now, just simulate success
     setInviteSent(true);
+    toast.success("Convite enviado com sucesso!");
     setTimeout(() => setInviteSent(false), 3000);
     setEmail("");
   };
   
+  const appUrl = window.location.origin;
+  const inviteLink = `${appUrl}/register?invitedBy=user1`;
+  
   const handleCopyLink = () => {
-    // Generate an invitation link
-    const inviteLink = `https://seriestalk.app/join?invitedBy=user1`;
-    
     // Copy to clipboard
     navigator.clipboard.writeText(inviteLink);
     
     // Show success message
     setCopied(true);
+    toast.success("Link copiado para a área de transferência!");
     setTimeout(() => setCopied(false), 3000);
+  };
+  
+  const handleShareWhatsApp = () => {
+    const message = encodeURIComponent(`Junte-se a mim no SeriesTalk para compartilharmos nossas experiências sobre séries! ${inviteLink}`);
+    const whatsappUrl = `https://wa.me/?text=${message}`;
+    window.open(whatsappUrl, '_blank');
   };
   
   // Get friends for the friends list
@@ -107,12 +116,12 @@ const Invite: React.FC = () => {
             variant="ghost" 
             className="flex w-full mt-2"
             onClick={() => {
-              // In a real app, this would open the device's share dialog
+              // Use Web Share API if available
               if (navigator.share) {
                 navigator.share({
                   title: 'SeriesTalk',
                   text: 'Junte-se a mim no SeriesTalk para compartilharmos nossas experiências sobre séries!',
-                  url: 'https://seriestalk.app/join?invitedBy=user1',
+                  url: inviteLink,
                 });
               } else {
                 // Fallback if Web Share API is not available
@@ -122,6 +131,15 @@ const Invite: React.FC = () => {
           >
             <Share2 size={16} className="mr-2" />
             Compartilhar
+          </Button>
+          
+          <Button 
+            variant="default" 
+            className="flex w-full mt-2 bg-green-600 hover:bg-green-700"
+            onClick={handleShareWhatsApp}
+          >
+            <MessageSquare size={16} className="mr-2" />
+            Compartilhar via WhatsApp
           </Button>
         </div>
       </div>
@@ -149,30 +167,7 @@ const Invite: React.FC = () => {
       </div>
       
       {/* Bottom Navigation */}
-      <div className="bottom-nav">
-        <div className="bottom-nav-content">
-          <Link to="/" className="nav-tab inactive p-3">
-            <Home size={22} />
-            <span>Início</span>
-          </Link>
-          <Link to="/search" className="nav-tab inactive p-3">
-            <Search size={22} />
-            <span>Busca</span>
-          </Link>
-          <Link to="/watched" className="nav-tab inactive p-3">
-            <ListChecks size={22} />
-            <span>Assistidos</span>
-          </Link>
-          <Link to="/watchlist" className="nav-tab inactive p-3">
-            <ListPlus size={22} />
-            <span>Quero ver</span>
-          </Link>
-          <Link to="/invite" className="nav-tab active p-3">
-            <Users size={22} />
-            <span>Amigos</span>
-          </Link>
-        </div>
-      </div>
+      <BottomNav />
     </div>
   );
 };

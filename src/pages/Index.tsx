@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Home, Search, ListChecks, ListPlus, Users, Filter } from "lucide-react";
+import { Filter } from "lucide-react";
 import Header from "../components/Header";
 import FeedItem from "../components/FeedItem";
 import { api } from "../services/api";
 import { FeedItem as FeedItemType, Genre } from "../types/Series";
+import BottomNav from "../components/BottomNav";
 
 const Index: React.FC = () => {
   const [feedItems, setFeedItems] = useState<FeedItemType[]>([]);
@@ -159,30 +160,7 @@ const Index: React.FC = () => {
         </div>
       )}
       
-      <div className="bottom-nav">
-        <div className="bottom-nav-content">
-          <Link to="/" className="nav-tab active p-3">
-            <Home size={22} />
-            <span>Início</span>
-          </Link>
-          <Link to="/search" className="nav-tab inactive p-3">
-            <Search size={22} />
-            <span>Busca</span>
-          </Link>
-          <Link to="/watched" className="nav-tab inactive p-3">
-            <ListChecks size={22} />
-            <span>Assistidos</span>
-          </Link>
-          <Link to="/watchlist" className="nav-tab inactive p-3">
-            <ListPlus size={22} />
-            <span>Quero ver</span>
-          </Link>
-          <Link to="/invite" className="nav-tab inactive p-3">
-            <Users size={22} />
-            <span>Amigos</span>
-          </Link>
-        </div>
-      </div>
+      <BottomNav />
     </div>
   );
 };

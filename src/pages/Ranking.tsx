@@ -1,12 +1,12 @@
 
-import React, { useState } from "react";
-import { Link } from "react-router-dom";
-import { Home, Search, ListVideo, TrendingUp, Users, Star, Eye, UserPlus, List } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { Star, Eye, UserPlus, List, TrendingUp } from "lucide-react";
 import Header from "../components/Header";
 import SeriesCard from "../components/SeriesCard";
 import { api } from "../services/api";
 import { Series } from "../types/Series";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import BottomNav from "../components/BottomNav";
 
 const Ranking: React.FC = () => {
   const [series, setSeries] = useState<Series[]>([]);
@@ -56,7 +56,7 @@ const Ranking: React.FC = () => {
   };
 
   // Carregar dados quando o componente for montado
-  React.useEffect(() => {
+  useEffect(() => {
     loadSeries(activeFilter);
   }, []);
 
@@ -105,31 +105,7 @@ const Ranking: React.FC = () => {
         </TabsContent>
       </Tabs>
       
-      {/* Bottom Navigation */}
-      <div className="bottom-nav">
-        <div className="bottom-nav-content">
-          <Link to="/" className="nav-tab inactive p-3">
-            <Home size={22} />
-            <span>Início</span>
-          </Link>
-          <Link to="/search" className="nav-tab inactive p-3">
-            <Search size={22} />
-            <span>Busca</span>
-          </Link>
-          <Link to="/watched" className="nav-tab inactive p-3">
-            <ListVideo size={22} />
-            <span>Minhas Séries</span>
-          </Link>
-          <Link to="/ranking" className="nav-tab active p-3">
-            <TrendingUp size={22} />
-            <span>Ranking</span>
-          </Link>
-          <Link to="/invite" className="nav-tab inactive p-3">
-            <Users size={22} />
-            <span>Amigos</span>
-          </Link>
-        </div>
-      </div>
+      <BottomNav />
     </div>
   );
   
