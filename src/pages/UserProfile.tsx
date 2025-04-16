@@ -1,18 +1,18 @@
 
-import React, { useEffect, useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
 import { Camera, Loader2 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "../hooks/useAuth";
+import { supabaseService } from "../services/supabaseService";
 import Header from "../components/Header";
 
 const profileSchema = z.object({
@@ -21,7 +21,7 @@ const profileSchema = z.object({
 
 const UserProfile = () => {
   const navigate = useNavigate();
-  const [user, setUser] = useState<any>(null);
+  const { user, signOut } = useAuth();
   const [profile, setProfile] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -37,33 +37,17 @@ const UserProfile = () => {
 
   // Carregar dados do usuário
   useEffect(() => {
-    const getUser = async () => {
+    const loadProfile = async () => {
+      if (!user) return;
+      
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        
-        if (!session) {
-          navigate("/auth");
-          return;
-        }
-        
-        setUser(session.user);
-        
-        // Buscar perfil do usuário
-        const { data: profileData, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', session.user.id)
-          .single();
-          
-        if (error && error.code !== 'PGRST116') {
-          throw error;
-        }
+        const profileData = await supabaseService.getUserProfile(user.id);
         
         if (profileData) {
           setProfile(profileData);
           setAvatarUrl(profileData.profile_pic);
           form.reset({ 
-            name: profileData.name || session.user.user_metadata?.name || "",
+            name: profileData.name || user.user_metadata?.name || "",
           });
         }
       } catch (error) {
@@ -74,8 +58,8 @@ const UserProfile = () => {
       }
     };
     
-    getUser();
-  }, [navigate, form]);
+    loadProfile();
+  }, [user, form]);
 
   const onSubmit = async (values: z.infer<typeof profileSchema>) => {
     if (!user) return;
@@ -83,17 +67,16 @@ const UserProfile = () => {
     setIsSaving(true);
     
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .upsert({
-          id: user.id,
-          name: values.name,
-          profile_pic: avatarUrl
-        });
+      const updatedProfile = await supabaseService.updateUserProfile({
+        id: user.id,
+        name: values.name,
+        profile_pic: avatarUrl
+      });
         
-      if (error) throw error;
-      
-      toast.success("Perfil atualizado com sucesso!");
+      if (updatedProfile) {
+        setProfile(updatedProfile);
+        toast.success("Perfil atualizado com sucesso!");
+      }
     } catch (error) {
       console.error("Erro ao atualizar perfil:", error);
       toast.error("Erro ao salvar o perfil. Tente novamente.");
@@ -104,30 +87,27 @@ const UserProfile = () => {
 
   const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     try {
-      if (!event.target.files || event.target.files.length === 0) {
+      if (!event.target.files || event.target.files.length === 0 || !user) {
         return;
       }
       
       setIsUploading(true);
       const file = event.target.files[0];
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${user.id}.${fileExt}`;
-      const filePath = `avatars/${fileName}`;
       
       // Fazer upload para o Supabase Storage
-      const { error: uploadError } = await supabase.storage
-        .from('avatars')
-        .upload(filePath, file, { upsert: true });
+      const publicUrl = await supabaseService.uploadAvatar(user.id, file);
         
-      if (uploadError) throw uploadError;
-      
-      // Obter URL pública do arquivo
-      const { data: urlData } = await supabase.storage
-        .from('avatars')
-        .getPublicUrl(filePath);
+      if (publicUrl) {
+        setAvatarUrl(publicUrl);
         
-      setAvatarUrl(urlData.publicUrl);
-      toast.success("Avatar enviado com sucesso!");
+        // Atualizar o perfil com o novo avatar
+        await supabaseService.updateUserProfile({
+          id: user.id,
+          profile_pic: publicUrl
+        });
+        
+        toast.success("Avatar enviado com sucesso!");
+      }
       
     } catch (error) {
       console.error("Erro ao enviar avatar:", error);
@@ -139,8 +119,7 @@ const UserProfile = () => {
 
   const handleLogout = async () => {
     try {
-      await supabase.auth.signOut();
-      navigate("/auth");
+      await signOut();
     } catch (error) {
       console.error("Erro ao deslogar:", error);
       toast.error("Erro ao sair. Tente novamente.");

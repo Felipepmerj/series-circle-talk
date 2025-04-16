@@ -1,43 +1,49 @@
 
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Home, Search, ListVideo, TrendingUp, Users } from "lucide-react";
+import { Home, Search, ListChecks, ListPlus, Users } from "lucide-react";
 import Header from "../components/Header";
 import SeriesCard from "../components/SeriesCard";
 import { api } from "../services/api";
 import { Series } from "../types/Series";
+import { useAuth } from "../hooks/useAuth";
+import { supabaseService } from "../services/supabaseService";
 
 const WatchList: React.FC = () => {
+  const { user } = useAuth();
   const [series, setSeries] = useState<Series[]>([]);
   const [loading, setLoading] = useState(true);
-
-  // Demo user - In a real app, this would come from authentication
-  const currentUserId = "user1";
   
   useEffect(() => {
     const fetchWatchlist = async () => {
+      if (!user) return;
+      
       try {
-        const user = await api.getUserById(currentUserId);
+        // Buscar watchlist do usuário do Supabase
+        const watchlist = await supabaseService.getWatchlist(user.id);
         
-        if (user) {
-          // Fetch series details for each watchlist item
-          const watchlistSeries = await Promise.all(
-            user.watchlist.map(async item => {
-              return await api.getSeriesById(item.seriesId);
-            })
-          );
-          
-          setSeries(watchlistSeries.filter(Boolean) as Series[]);
-        }
+        // Buscar detalhes das séries da API
+        const seriesWithDetails = await Promise.all(
+          watchlist.map(async item => {
+            try {
+              return await api.getSeriesById(item.series_id);
+            } catch (error) {
+              console.error(`Erro ao buscar detalhes da série ${item.series_id}:`, error);
+              return null;
+            }
+          })
+        );
+        
+        setSeries(seriesWithDetails.filter(Boolean) as Series[]);
       } catch (error) {
-        console.error("Error fetching watchlist:", error);
+        console.error("Erro ao buscar watchlist:", error);
       } finally {
         setLoading(false);
       }
     };
     
     fetchWatchlist();
-  }, [currentUserId]);
+  }, [user]);
   
   return (
     <div className="app-container">
@@ -80,12 +86,12 @@ const WatchList: React.FC = () => {
             <span>Busca</span>
           </Link>
           <Link to="/watched" className="nav-tab inactive p-3">
-            <ListVideo size={22} />
-            <span>Minhas Séries</span>
+            <ListChecks size={22} />
+            <span>Assistidos</span>
           </Link>
-          <Link to="/ranking" className="nav-tab inactive p-3">
-            <TrendingUp size={22} />
-            <span>Ranking</span>
+          <Link to="/watchlist" className="nav-tab active p-3">
+            <ListPlus size={22} />
+            <span>Quero ver</span>
           </Link>
           <Link to="/invite" className="nav-tab inactive p-3">
             <Users size={22} />

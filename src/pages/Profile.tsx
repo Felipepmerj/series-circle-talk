@@ -1,85 +1,92 @@
 
 import React, { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { Link } from "react-router-dom";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import { Home, Search, ListChecks, ListPlus, Users, Grid, List, Settings } from "lucide-react";
 import Header from "../components/Header";
 import SeriesCard from "../components/SeriesCard";
 import { api } from "../services/api";
-import { User, Series } from "../types/Series";
+import { Series } from "../types/Series";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "../hooks/useAuth";
+import { supabaseService, WatchedSeries, WatchlistItem } from "../services/supabaseService";
 
 const Profile: React.FC = () => {
   const navigate = useNavigate();
-  const { userId = "user1" } = useParams<{ userId: string }>();
-  const [user, setUser] = useState<User | null>(null);
+  const { user } = useAuth();
+  const { userId } = useParams<{ userId: string }>();
+  const [profile, setProfile] = useState<any>(null);
   const [watchedSeries, setWatchedSeries] = useState<(Series & { userRating: number, userComment: string })[]>([]);
   const [watchlistSeries, setWatchlistSeries] = useState<(Series & { userNote?: string })[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   
-  // Verificar se o usuário está autenticado
-  useEffect(() => {
-    const checkAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        setCurrentUserId(session.user.id);
-      }
-    };
-    
-    checkAuth();
-  }, []);
+  // Usar o ID do usuário atual se não for especificado na URL
+  const currentProfileId = userId || user?.id;
+  const isOwnProfile = !userId || userId === user?.id;
   
   useEffect(() => {
     const fetchUserData = async () => {
+      if (!currentProfileId) return;
+      
       try {
-        const userData = await api.getUserById(userId);
+        // Buscar perfil do usuário
+        const profileData = await supabaseService.getUserProfile(currentProfileId);
         
-        if (userData) {
-          setUser(userData);
+        if (profileData) {
+          setProfile(profileData);
           
-          // Fetch watched series details
-          const watched = await Promise.all(
-            userData.watchedSeries.map(async review => {
-              const series = await api.getSeriesById(review.seriesId);
-              return series ? {
-                ...series,
-                userRating: review.rating,
-                userComment: review.comment
-              } : null;
+          // Buscar séries assistidas
+          const watched = await supabaseService.getWatchedSeries(currentProfileId);
+          const watchedWithDetails = await Promise.all(
+            watched.map(async item => {
+              try {
+                const series = await api.getSeriesById(item.series_id);
+                return series ? {
+                  ...series,
+                  userRating: item.rating || 0,
+                  userComment: item.comment || ""
+                } : null;
+              } catch (error) {
+                console.error(`Erro ao buscar detalhes da série ${item.series_id}:`, error);
+                return null;
+              }
             })
           );
           
-          // Fetch watchlist series details
-          const watchlist = await Promise.all(
-            userData.watchlist.map(async item => {
-              const series = await api.getSeriesById(item.seriesId);
-              return series ? {
-                ...series,
-                userNote: item.note
-              } : null;
+          // Buscar lista de séries para assistir
+          const watchlist = await supabaseService.getWatchlist(currentProfileId);
+          const watchlistWithDetails = await Promise.all(
+            watchlist.map(async item => {
+              try {
+                const series = await api.getSeriesById(item.series_id);
+                return series ? {
+                  ...series,
+                  userNote: item.notes
+                } : null;
+              } catch (error) {
+                console.error(`Erro ao buscar detalhes da série ${item.series_id}:`, error);
+                return null;
+              }
             })
           );
           
-          setWatchedSeries(watched.filter(Boolean) as (Series & { userRating: number, userComment: string })[]);
-          setWatchlistSeries(watchlist.filter(Boolean) as (Series & { userNote?: string })[]);
+          setWatchedSeries(watchedWithDetails.filter(Boolean) as (Series & { userRating: number, userComment: string })[]);
+          setWatchlistSeries(watchlistWithDetails.filter(Boolean) as (Series & { userNote?: string })[]);
         }
       } catch (error) {
-        console.error("Error fetching user data:", error);
+        console.error("Erro ao buscar dados do usuário:", error);
       } finally {
         setLoading(false);
       }
     };
     
     fetchUserData();
-  }, [userId]);
+  }, [currentProfileId, user?.id]);
   
   // Botão para acessar o perfil do usuário
-  const renderEditProfileButton = () => {
-    if (!currentUserId) return null;
+  const renderProfileButton = () => {
+    if (!user || !isOwnProfile) return null;
     
     return (
       <Button 
@@ -106,7 +113,7 @@ const Profile: React.FC = () => {
     );
   }
   
-  if (!user) {
+  if (!profile) {
     return (
       <div className="app-container">
         <Header title="Perfil não encontrado" showBackButton />
@@ -122,24 +129,24 @@ const Profile: React.FC = () => {
   
   return (
     <div className="app-container">
-      <Header title="Perfil" showBackButton />
+      <Header title={isOwnProfile ? "Meu Perfil" : "Perfil"} showBackButton />
       
       {/* Profile header */}
       <div className="flex items-center p-4">
         <img 
-          src={user.profilePic || "/placeholder.svg"} 
-          alt={user.name}
+          src={profile.profile_pic || "/placeholder.svg"} 
+          alt={profile.name}
           className="w-16 h-16 rounded-full object-cover"
         />
         <div className="ml-4 flex-1">
-          <h2 className="text-xl font-semibold">{user.name}</h2>
+          <h2 className="text-xl font-semibold">{profile.name}</h2>
           <p className="text-muted-foreground">
             <span>{watchedSeries.length} séries assistidas</span>
             <span className="mx-2">•</span>
             <span>{watchlistSeries.length} na lista</span>
           </p>
         </div>
-        {renderEditProfileButton()}
+        {renderProfileButton()}
       </div>
       
       {/* Series tabs */}
