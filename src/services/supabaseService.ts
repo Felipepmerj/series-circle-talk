@@ -1,5 +1,4 @@
 
-
 import { supabase } from "@/integrations/supabase/client";
 import { User } from "../types/Series";
 
@@ -66,9 +65,9 @@ export const supabaseService = {
   
   // Séries assistidas
   async getWatchedSeries(userId: string): Promise<WatchedSeries[]> {
-    // A tabela se chama watched_series no Supabase
+    // Conforme os logs, precisamos usar watched_shows em vez de watched_series
     const { data, error } = await supabase
-      .from('watched_series')
+      .from('watched_shows')
       .select('*')
       .eq('user_id', userId)
       .order('watched_at', { ascending: false });
@@ -78,13 +77,35 @@ export const supabaseService = {
       return [];
     }
     
-    return data || [];
+    // Adaptando os dados recebidos para o formato WatchedSeries
+    const adaptedData = data.map(item => ({
+      id: item.id,
+      user_id: item.user_id,
+      series_id: parseInt(item.tmdb_id, 10), // Convertendo tmdb_id para número
+      title: "",  // Estes campos serão preenchidos pelo componente que usa este serviço
+      poster_path: null,
+      rating: item.rating,
+      comment: item.review,
+      watched_at: item.watched_at,
+      created_at: item.created_at
+    })) as WatchedSeries[];
+    
+    return adaptedData;
   },
   
   async addWatchedSeries(series: WatchedSeries): Promise<WatchedSeries | null> {
+    // Adaptação para o formato esperado pela tabela watched_shows
+    const watchedShow = {
+      user_id: series.user_id,
+      tmdb_id: series.series_id.toString(),
+      rating: series.rating,
+      review: series.comment,
+      watched_at: series.watched_at || new Date().toISOString()
+    };
+    
     const { data, error } = await supabase
-      .from('watched_series')
-      .insert(series)
+      .from('watched_shows')
+      .insert(watchedShow)
       .select()
       .single();
       
@@ -93,13 +114,31 @@ export const supabaseService = {
       return null;
     }
     
-    return data;
+    // Convertendo de volta para o formato WatchedSeries
+    return {
+      id: data.id,
+      user_id: data.user_id,
+      series_id: parseInt(data.tmdb_id, 10),
+      title: series.title, // Mantemos o título original
+      poster_path: series.poster_path,
+      rating: data.rating,
+      comment: data.review,
+      watched_at: data.watched_at,
+      created_at: data.created_at
+    };
   },
   
   async updateWatchedSeries(series: Partial<WatchedSeries>): Promise<WatchedSeries | null> {
+    // Adaptação para o formato esperado pela tabela watched_shows
+    const updateData: any = {};
+    
+    if (series.rating !== undefined) updateData.rating = series.rating;
+    if (series.comment !== undefined) updateData.review = series.comment;
+    if (series.watched_at !== undefined) updateData.watched_at = series.watched_at;
+    
     const { data, error } = await supabase
-      .from('watched_series')
-      .update(series)
+      .from('watched_shows')
+      .update(updateData)
       .eq('id', series.id!)
       .select()
       .single();
@@ -109,12 +148,23 @@ export const supabaseService = {
       return null;
     }
     
-    return data;
+    // Convertendo de volta para o formato WatchedSeries
+    return {
+      id: data.id,
+      user_id: data.user_id,
+      series_id: parseInt(data.tmdb_id, 10),
+      title: "", // Será preenchido pelo componente que usa este serviço
+      poster_path: null,
+      rating: data.rating,
+      comment: data.review,
+      watched_at: data.watched_at,
+      created_at: data.created_at
+    };
   },
   
   async deleteWatchedSeries(id: string): Promise<boolean> {
     const { error } = await supabase
-      .from('watched_series')
+      .from('watched_shows')
       .delete()
       .eq('id', id);
       
@@ -128,25 +178,43 @@ export const supabaseService = {
   
   // Lista de séries para assistir
   async getWatchlist(userId: string): Promise<WatchlistItem[]> {
-    // A tabela se chama user_watchlist no Supabase
+    // Conforme os logs, precisamos usar watchlist em vez de user_watchlist
     const { data, error } = await supabase
-      .from('user_watchlist')
+      .from('watchlist')
       .select('*')
       .eq('user_id', userId)
-      .order('added_at', { ascending: false });
+      .order('created_at', { ascending: false });
       
     if (error) {
       console.error("Erro ao buscar watchlist:", error);
       return [];
     }
     
-    return data || [];
+    // Adaptando os dados recebidos para o formato WatchlistItem
+    const adaptedData = data.map(item => ({
+      id: item.id,
+      user_id: item.user_id,
+      series_id: parseInt(item.tmdb_id, 10), // Convertendo tmdb_id para número
+      title: "",  // Estes campos serão preenchidos pelo componente que usa este serviço
+      poster_path: null,
+      added_at: item.created_at,
+      notes: item.note
+    })) as WatchlistItem[];
+    
+    return adaptedData;
   },
   
   async addToWatchlist(item: WatchlistItem): Promise<WatchlistItem | null> {
+    // Adaptação para o formato esperado pela tabela watchlist
+    const watchlistItem = {
+      user_id: item.user_id,
+      tmdb_id: item.series_id.toString(),
+      note: item.notes
+    };
+    
     const { data, error } = await supabase
-      .from('user_watchlist')
-      .insert(item)
+      .from('watchlist')
+      .insert(watchlistItem)
       .select()
       .single();
       
@@ -155,13 +223,27 @@ export const supabaseService = {
       return null;
     }
     
-    return data;
+    // Convertendo de volta para o formato WatchlistItem
+    return {
+      id: data.id,
+      user_id: data.user_id,
+      series_id: parseInt(data.tmdb_id, 10),
+      title: item.title, // Mantemos o título original
+      poster_path: item.poster_path,
+      added_at: data.created_at,
+      notes: data.note
+    };
   },
   
   async updateWatchlistItem(item: Partial<WatchlistItem>): Promise<WatchlistItem | null> {
+    // Adaptação para o formato esperado pela tabela watchlist
+    const updateData: any = {};
+    
+    if (item.notes !== undefined) updateData.note = item.notes;
+    
     const { data, error } = await supabase
-      .from('user_watchlist')
-      .update(item)
+      .from('watchlist')
+      .update(updateData)
       .eq('id', item.id!)
       .select()
       .single();
@@ -171,12 +253,21 @@ export const supabaseService = {
       return null;
     }
     
-    return data;
+    // Convertendo de volta para o formato WatchlistItem
+    return {
+      id: data.id,
+      user_id: data.user_id,
+      series_id: parseInt(data.tmdb_id, 10),
+      title: "", // Será preenchido pelo componente que usa este serviço
+      poster_path: null,
+      added_at: data.created_at,
+      notes: data.note
+    };
   },
   
   async removeFromWatchlist(id: string): Promise<boolean> {
     const { error } = await supabase
-      .from('user_watchlist')
+      .from('watchlist')
       .delete()
       .eq('id', id);
       
@@ -209,4 +300,3 @@ export const supabaseService = {
     return data.publicUrl;
   }
 };
-
