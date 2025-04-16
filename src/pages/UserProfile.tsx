@@ -1,10 +1,10 @@
-
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -35,7 +35,6 @@ const UserProfile = () => {
     },
   });
 
-  // Carregar dados do usuário
   useEffect(() => {
     const loadProfile = async () => {
       if (!user) return;
@@ -94,13 +93,11 @@ const UserProfile = () => {
       setIsUploading(true);
       const file = event.target.files[0];
       
-      // Fazer upload para o Supabase Storage
       const publicUrl = await supabaseService.uploadAvatar(user.id, file);
         
       if (publicUrl) {
         setAvatarUrl(publicUrl);
         
-        // Atualizar o perfil com o novo avatar
         await supabaseService.updateUserProfile({
           id: user.id,
           profile_pic: publicUrl
