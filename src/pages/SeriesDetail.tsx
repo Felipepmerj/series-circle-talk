@@ -9,19 +9,24 @@ import { api } from "../services/api";
 import { Series, SeriesReview, User } from "../types/Series";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { useAuth } from "../hooks/useAuth";
+import { supabaseService, WatchedSeries, WatchlistItem } from "../services/supabaseService";
+import { useToast } from "@/hooks/use-toast";
 
 const SeriesDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const [searchParams] = useSearchParams();
+  const { user } = useAuth();
+  const { toast } = useToast();
   
   const [series, setSeries] = useState<Series | null>(null);
   const [loading, setLoading] = useState(true);
   const [reviews, setReviews] = useState<(SeriesReview & { user: User })[]>([]);
   
   // Demo user - In a real app, this would come from authentication
-  const currentUserId = "user1";
+  const currentUserId = user?.id || "user1";
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   
   // Review dialog states
@@ -37,6 +42,8 @@ const SeriesDetail: React.FC = () => {
   // Check if the user has already reviewed or added to watchlist
   const [userReview, setUserReview] = useState<SeriesReview | null>(null);
   const [inWatchlist, setInWatchlist] = useState(false);
+  const [watchedId, setWatchedId] = useState<string | null>(null);
+  const [watchlistId, setWatchlistId] = useState<string | null>(null);
   
   useEffect(() => {
     const fetchSeriesDetails = async () => {
@@ -50,51 +57,81 @@ const SeriesDetail: React.FC = () => {
         if (seriesData) {
           setSeries(seriesData);
           
-          // Fetch all users for reviews
-          const usersData = await api.getUsers();
-          const user = usersData.find(u => u.id === currentUserId);
-          setCurrentUser(user || null);
-          
-          // Collect reviews from all users
-          const allReviews: (SeriesReview & { user: User })[] = [];
-          
-          for (const user of usersData) {
-            const userReviews = user.watchedSeries
-              .filter(review => review.seriesId === Number(id))
-              .map(review => ({
-                ...review,
-                user
-              }));
-              
-            allReviews.push(...userReviews);
+          if (user) {
+            // Check if current user has already watched this series
+            const watchedItems = await supabaseService.getWatchedSeries(user.id);
+            const watchedItem = watchedItems.find(item => item.series_id === Number(id));
             
-            // Check if current user has reviewed
-            if (user.id === currentUserId) {
-              const review = user.watchedSeries.find(r => r.seriesId === Number(id));
-              if (review) {
-                setUserReview(review);
-                setRating(review.rating);
-                setComment(review.comment);
-                if (review.watchedOn) {
-                  setWatchedDate(review.watchedOn);
-                }
-              }
-              
-              // Check if in watchlist
-              const watchlistItem = user.watchlist.find(w => w.seriesId === Number(id));
-              setInWatchlist(!!watchlistItem);
-              if (watchlistItem?.note) {
-                setWatchlistNote(watchlistItem.note);
+            if (watchedItem) {
+              setUserReview({
+                id: watchedItem.id || "",
+                userId: watchedItem.user_id,
+                seriesId: watchedItem.series_id,
+                rating: watchedItem.rating || 0,
+                comment: watchedItem.comment || "",
+                watchedOn: watchedItem.watched_at,
+                createdAt: watchedItem.created_at || new Date().toISOString()
+              });
+              setWatchedId(watchedItem.id || null);
+              setRating(watchedItem.rating || 5);
+              setComment(watchedItem.comment || "");
+              if (watchedItem.watched_at) {
+                setWatchedDate(watchedItem.watched_at.split('T')[0]);
               }
             }
+            
+            // Check if in watchlist
+            const watchlistItems = await supabaseService.getWatchlist(user.id);
+            const watchlistItem = watchlistItems.find(w => w.series_id === Number(id));
+            
+            setInWatchlist(!!watchlistItem);
+            setWatchlistId(watchlistItem?.id || null);
+            if (watchlistItem?.notes) {
+              setWatchlistNote(watchlistItem.notes);
+            }
+            
+            // Fetch other users' reviews
+            const allReviews: (SeriesReview & { user: User })[] = [];
+            const usersData = await api.getUsers();
+            
+            for (const userData of usersData) {
+              // Skip current user's review as we already have it
+              if (userData.id === user.id) continue;
+              
+              const userReviews = userData.watchedSeries
+                .filter(review => review.seriesId === Number(id))
+                .map(review => ({
+                  ...review,
+                  user: userData
+                }));
+                
+              allReviews.push(...userReviews);
+            }
+            
+            // Add current user review to the list if exists
+            if (watchedItem && currentUser) {
+              const currentUserForReview = usersData.find(u => u.id === user.id);
+              if (currentUserForReview) {
+                allReviews.unshift({
+                  id: watchedItem.id || "",
+                  userId: watchedItem.user_id,
+                  seriesId: watchedItem.series_id,
+                  rating: watchedItem.rating || 0,
+                  comment: watchedItem.comment || "",
+                  watchedOn: watchedItem.watched_at,
+                  createdAt: watchedItem.created_at || new Date().toISOString(),
+                  user: currentUserForReview
+                });
+              }
+            }
+            
+            // Sort by most recent
+            allReviews.sort((a, b) => 
+              new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+            );
+            
+            setReviews(allReviews);
           }
-          
-          // Sort by most recent
-          allReviews.sort((a, b) => 
-            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-          );
-          
-          setReviews(allReviews);
         }
       } catch (error) {
         console.error("Error fetching series details:", error);
@@ -104,7 +141,7 @@ const SeriesDetail: React.FC = () => {
     };
     
     fetchSeriesDetails();
-  }, [id, currentUserId]);
+  }, [id, user]);
   
   // Check if action is specified in URL
   useEffect(() => {
@@ -117,66 +154,132 @@ const SeriesDetail: React.FC = () => {
   }, [searchParams]);
   
   const handleAddReview = async () => {
-    if (!series) return;
+    if (!series || !user) {
+      toast({
+        title: "Erro",
+        description: "Você precisa estar logado para adicionar uma avaliação",
+        variant: "destructive"
+      });
+      return;
+    }
     
     try {
-      const newReview = await api.addReview(
-        currentUserId,
-        series.id,
-        rating,
-        comment,
-        watchedDate
-      );
+      // Prepare data for watched series
+      const watchedData: WatchedSeries = {
+        user_id: user.id,
+        series_id: series.id,
+        title: series.name,
+        poster_path: series.poster_path,
+        rating: rating,
+        comment: comment,
+        watched_at: watchedDate || new Date().toISOString()
+      };
       
-      // In a real app, this would update the server and then refresh data
-      // For now, we'll update the UI directly
-      setUserReview(newReview);
+      let newReview;
       
-      // Update the reviews list
-      if (currentUser) {
-        const updatedReviews = [...reviews];
-        const existingReviewIndex = updatedReviews.findIndex(
-          r => r.userId === currentUserId && r.seriesId === series.id
-        );
-        
-        if (existingReviewIndex >= 0) {
-          // Replace existing review
-          updatedReviews[existingReviewIndex] = {
-            ...newReview,
-            user: currentUser
-          };
-        } else {
-          // Add new review
-          updatedReviews.unshift({
-            ...newReview,
-            user: currentUser
-          });
-        }
-        
-        setReviews(updatedReviews);
+      if (watchedId) {
+        // Update existing review
+        watchedData.id = watchedId;
+        newReview = await supabaseService.updateWatchedSeries(watchedData);
+        toast({
+          title: "Avaliação atualizada",
+          description: "Sua avaliação foi atualizada com sucesso!",
+        });
+      } else {
+        // Add new review
+        newReview = await supabaseService.addWatchedSeries(watchedData);
+        setWatchedId(newReview?.id || null);
+        toast({
+          title: "Série marcada como assistida",
+          description: "Sua avaliação foi salva com sucesso!",
+        });
+      }
+      
+      if (newReview) {
+        setUserReview({
+          id: newReview.id || "",
+          userId: newReview.user_id,
+          seriesId: newReview.series_id,
+          rating: newReview.rating || 0,
+          comment: newReview.comment || "",
+          watchedOn: newReview.watched_at,
+          createdAt: newReview.created_at || new Date().toISOString()
+        });
+      }
+      
+      // If it was in watchlist, remove from watchlist
+      if (inWatchlist && watchlistId) {
+        await supabaseService.removeFromWatchlist(watchlistId);
+        setInWatchlist(false);
+        setWatchlistId(null);
       }
       
       setShowReviewDialog(false);
+      
+      // Refresh the page to update the UI
+      window.location.reload();
     } catch (error) {
       console.error("Error adding review:", error);
+      toast({
+        title: "Erro",
+        description: "Ocorreu um erro ao adicionar sua avaliação",
+        variant: "destructive"
+      });
     }
   };
   
   const handleAddToWatchlist = async () => {
-    if (!series) return;
+    if (!series || !user) {
+      toast({
+        title: "Erro",
+        description: "Você precisa estar logado para adicionar à sua lista",
+        variant: "destructive"
+      });
+      return;
+    }
     
     try {
-      const newWatchlistItem = await api.addToWatchlist(
-        currentUserId,
-        series.id,
-        watchlistNote
-      );
+      // Prepare data for watchlist
+      const watchlistData: WatchlistItem = {
+        user_id: user.id,
+        series_id: series.id,
+        title: series.name,
+        poster_path: series.poster_path,
+        notes: watchlistNote
+      };
       
-      // In a real app, this would update the server
+      let result;
+      
+      if (watchlistId) {
+        // Update existing watchlist item
+        watchlistData.id = watchlistId;
+        result = await supabaseService.updateWatchlistItem(watchlistData);
+        toast({
+          title: "Lista atualizada",
+          description: "Suas anotações foram atualizadas com sucesso!",
+        });
+      } else {
+        // Add new watchlist item
+        result = await supabaseService.addToWatchlist(watchlistData);
+        setWatchlistId(result?.id || null);
+        toast({
+          title: "Adicionado à lista",
+          description: "A série foi adicionada à sua lista com sucesso!",
+        });
+      }
+      
       setInWatchlist(true);
       setShowWatchlistDialog(false);
+      
+      // Refresh the page to update the UI
+      window.location.reload();
     } catch (error) {
       console.error("Error adding to watchlist:", error);
+      toast({
+        title: "Erro",
+        description: "Ocorreu um erro ao adicionar à sua lista",
+        variant: "destructive"
+      });
     }
   };
   
@@ -295,6 +398,9 @@ const SeriesDetail: React.FC = () => {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Avaliação de {series.name}</DialogTitle>
+            <DialogDescription>
+              Compartilhe sua opinião sobre esta série
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div>
@@ -338,6 +444,9 @@ const SeriesDetail: React.FC = () => {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Adicionar à sua lista</DialogTitle>
+            <DialogDescription>
+              Por que você quer assistir esta série?
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div>
