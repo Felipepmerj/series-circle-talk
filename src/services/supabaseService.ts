@@ -1,4 +1,5 @@
 
+
 import { supabase } from "@/integrations/supabase/client";
 import { User } from "../types/Series";
 
@@ -65,6 +66,7 @@ export const supabaseService = {
   
   // Séries assistidas
   async getWatchedSeries(userId: string): Promise<WatchedSeries[]> {
+    // A tabela se chama watched_series no Supabase
     const { data, error } = await supabase
       .from('watched_series')
       .select('*')
@@ -126,6 +128,7 @@ export const supabaseService = {
   
   // Lista de séries para assistir
   async getWatchlist(userId: string): Promise<WatchlistItem[]> {
+    // A tabela se chama user_watchlist no Supabase
     const { data, error } = await supabase
       .from('user_watchlist')
       .select('*')
@@ -206,3 +209,4 @@ export const supabaseService = {
     return data.publicUrl;
   }
 };
+
