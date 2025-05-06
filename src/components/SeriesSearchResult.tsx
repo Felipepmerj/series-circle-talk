@@ -45,35 +45,8 @@ const SeriesSearchResult: React.FC<SeriesSearchResultProps> = ({
     }
     
     try {
-      const watchlistData = {
-        user_id: user.id,
-        series_id: series.id,
-        title: series.name,
-        poster_path: series.poster_path,
-        notes: ""
-      };
-      
-      const result = await supabaseService.addToWatchlist(watchlistData);
-      
-      if (result) {
-        toast({
-          title: "Adicionado à lista",
-          description: "A série foi adicionada à sua lista com sucesso!",
-        });
-        
-        if (onAddToWatchlist) {
-          onAddToWatchlist();
-        }
-        
-        // Redirecionar para a página de detalhes com ação para abrir o modal
-        window.location.href = `/series/${series.id}?action=watchlist`;
-      } else {
-        toast({
-          title: "Erro",
-          description: "Não foi possível adicionar à sua lista",
-          variant: "destructive"
-        });
-      }
+      // Redirecionar para a página de detalhes com ação para abrir o modal
+      window.location.href = `/series/${series.id}?action=watchlist`;
     } catch (error) {
       console.error("Error adding to watchlist:", error);
       toast({

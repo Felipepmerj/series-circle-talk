@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Star, StarHalf } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 
@@ -20,12 +20,17 @@ const RatingStars: React.FC<RatingStarsProps> = ({
 }) => {
   const [sliderValue, setSliderValue] = useState(rating);
   
+  // Update slider value when rating prop changes
+  useEffect(() => {
+    setSliderValue(rating);
+  }, [rating]);
+  
   // Convert to 5 stars (if using 10-scale)
   const displayRating = max === 10 ? rating / 2 : rating;
   const displayMax = max === 10 ? 5 : max;
   
   const handleSliderChange = (value: number[]) => {
-    const newValue = value[0];
+    const newValue = Number(value[0].toFixed(1)); // Ensure value is rounded to 1 decimal place
     setSliderValue(newValue);
     if (onChange) {
       onChange(newValue);
@@ -80,7 +85,7 @@ const RatingStars: React.FC<RatingStarsProps> = ({
             value={[sliderValue]}
             min={0}
             max={10}
-            step={0.1}
+            step={0.1} // Step is 0.1 for precise rating
             onValueChange={handleSliderChange}
           />
           <div className="text-xs text-center mt-1 text-muted-foreground">

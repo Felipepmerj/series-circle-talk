@@ -508,6 +508,7 @@ const SeriesDetail: React.FC = () => {
                 placeholder="O que você achou da série..."
                 value={comment}
                 onChange={(e) => setComment(e.target.value)}
+                autoComplete="off"
               />
             </div>
             
@@ -517,6 +518,7 @@ const SeriesDetail: React.FC = () => {
                 type="date"
                 value={watchedDate}
                 onChange={(e) => setWatchedDate(e.target.value)}
+                autoComplete="off"
               />
             </div>
             
@@ -543,6 +545,7 @@ const SeriesDetail: React.FC = () => {
                 placeholder="Recomendação de um amigo, continuação de outra série..."
                 value={watchlistNote}
                 onChange={(e) => setWatchlistNote(e.target.value)}
+                autoComplete="off"
               />
             </div>
             
