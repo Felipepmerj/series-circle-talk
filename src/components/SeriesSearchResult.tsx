@@ -45,8 +45,35 @@ const SeriesSearchResult: React.FC<SeriesSearchResultProps> = ({
     }
     
     try {
-      // Redirecionar para a página de detalhes com ação para abrir o modal
-      window.location.href = `/series/${series.id}?action=watchlist`;
+      // Instead of redirecting immediately, try to add to watchlist first
+      if (!isInWatchlist) {
+        const watchlistItem = {
+          user_id: user.id,
+          series_id: series.id,
+          title: series.name,
+          poster_path: series.poster_path,
+          notes: null
+        };
+        
+        const result = await supabaseService.addToWatchlist(watchlistItem);
+        
+        if (result) {
+          toast({
+            title: "Sucesso",
+            description: "Série adicionada à sua lista de interesse"
+          });
+          if (onAddToWatchlist) onAddToWatchlist();
+        } else {
+          toast({
+            title: "Erro",
+            description: "Não foi possível adicionar à sua lista",
+            variant: "destructive"
+          });
+        }
+      } else {
+        // Redirecionar para a página de detalhes para editar
+        window.location.href = `/series/${series.id}?action=watchlist`;
+      }
     } catch (error) {
       console.error("Error adding to watchlist:", error);
       toast({
@@ -68,8 +95,39 @@ const SeriesSearchResult: React.FC<SeriesSearchResultProps> = ({
     }
     
     try {
-      // Redirecionar para a página de detalhes com ação para abrir o modal
-      window.location.href = `/series/${series.id}?action=watched`;
+      // Instead of redirecting immediately, try to add to watched first
+      if (!isWatched) {
+        const watchedSeries = {
+          user_id: user.id,
+          series_id: series.id,
+          title: series.name,
+          poster_path: series.poster_path,
+          rating: 5,  // Default rating
+          comment: "",
+          watched_at: new Date().toISOString()
+        };
+        
+        const result = await supabaseService.addWatchedSeries(watchedSeries);
+        
+        if (result) {
+          toast({
+            title: "Sucesso",
+            description: "Série marcada como assistida"
+          });
+          if (onAddToWatched) onAddToWatched();
+        } else {
+          toast({
+            title: "Erro",
+            description: "Não foi possível marcar como assistida",
+            variant: "destructive"
+          });
+          // Log detailed error info for debugging
+          supabaseService.log("Falha ao marcar como assistida:", watchedSeries);
+        }
+      } else {
+        // Redirecionar para a página de detalhes para editar
+        window.location.href = `/series/${series.id}?action=watched`;
+      }
     } catch (error) {
       console.error("Error adding to watched:", error);
       toast({
@@ -114,6 +172,7 @@ const SeriesSearchResult: React.FC<SeriesSearchResultProps> = ({
           className="rounded-full w-8 h-8 p-0"
           aria-label="Marcar como assistido"
           title="Marcar como assistido"
+          type="button"
         >
           <Check className="h-4 w-4" />
         </Button>
@@ -125,6 +184,7 @@ const SeriesSearchResult: React.FC<SeriesSearchResultProps> = ({
           className="rounded-full w-8 h-8 p-0"
           aria-label="Adicionar à lista"
           title="Adicionar à lista"
+          type="button"
         >
           <Plus className="h-4 w-4" />
         </Button>

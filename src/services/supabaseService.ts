@@ -51,29 +51,27 @@ export const supabaseService = {
         .from('profiles')
         .select('id')
         .eq('id', userId)
-        .maybeSingle();  // Use maybeSingle() instead of single()
+        .maybeSingle();
         
       if (checkError || !existingUser) {
-        this.log("Perfil não encontrado, verificando se precisa criar");
+        this.log("Perfil não encontrado, criando perfil");
         
-        // Se o perfil não existe, pode ser que o usuário exista na auth mas sem perfil
-        // Vamos criar um perfil para o usuário
+        // Criar perfil para o usuário
         const name = email ? email.split('@')[0] : `user-${userId.substring(0, 8)}`;
         
-        const { data: newProfile, error: createError } = await supabase
+        const { error: createError } = await supabase
           .from('profiles')
           .insert({
             id: userId,
             name: name
-          })
-          .select();
+          });
           
         if (createError) {
           this.log("Erro ao criar perfil:", createError);
           return false;
         }
         
-        this.log("Perfil criado com sucesso:", newProfile);
+        this.log("Perfil criado com sucesso");
         return true;
       }
       
@@ -175,6 +173,50 @@ export const supabaseService = {
       if (!userExists) {
         this.log("Não foi possível adicionar a série assistida, perfil não existe e não pôde ser criado");
         return null;
+      }
+      
+      // Verificar se o usuário já existe na tabela que tem a chave estrangeira
+      const { data: existingRecord, error: existingError } = await supabase
+        .from('watched_shows')
+        .select('id')
+        .eq('user_id', series.user_id)
+        .eq('tmdb_id', series.series_id.toString())
+        .maybeSingle();
+      
+      if (existingRecord) {
+        this.log("A série já foi marcada como assistida por este usuário. Atualizando.");
+        
+        const updateData = {
+          rating: series.rating,
+          review: series.comment,
+          watched_at: series.watched_at
+        };
+        
+        const { data: updatedData, error: updateError } = await supabase
+          .from('watched_shows')
+          .update(updateData)
+          .eq('id', existingRecord.id)
+          .select()
+          .single();
+          
+        if (updateError) {
+          this.log("Erro ao atualizar série assistida:", updateError);
+          return null;
+        }
+        
+        this.log("Série assistida atualizada com sucesso:", updatedData);
+        
+        return {
+          id: updatedData.id,
+          user_id: updatedData.user_id,
+          series_id: parseInt(updatedData.tmdb_id, 10),
+          title: series.title,
+          poster_path: series.poster_path,
+          rating: updatedData.rating,
+          comment: updatedData.review,
+          watched_at: updatedData.watched_at,
+          created_at: updatedData.created_at
+        };
       }
       
       // Adaptação para o formato esperado pela tabela watched_shows
@@ -332,6 +374,46 @@ export const supabaseService = {
       if (!userExists) {
         this.log("Não foi possível adicionar à watchlist, perfil não existe e não pôde ser criado");
         return null;
+      }
+      
+      // Verificar se a série já está na watchlist deste usuário
+      const { data: existingItem, error: existingError } = await supabase
+        .from('watchlist')
+        .select('id')
+        .eq('user_id', item.user_id)
+        .eq('tmdb_id', item.series_id.toString())
+        .maybeSingle();
+      
+      if (existingItem) {
+        this.log("A série já está na watchlist deste usuário. Atualizando.");
+        
+        const updateData = {
+          note: item.notes
+        };
+        
+        const { data: updatedData, error: updateError } = await supabase
+          .from('watchlist')
+          .update(updateData)
+          .eq('id', existingItem.id)
+          .select()
+          .single();
+          
+        if (updateError) {
+          this.log("Erro ao atualizar item da watchlist:", updateError);
+          return null;
+        }
+        
+        this.log("Item da watchlist atualizado com sucesso:", updatedData);
+        
+        return {
+          id: updatedData.id,
+          user_id: updatedData.user_id,
+          series_id: parseInt(updatedData.tmdb_id, 10),
+          title: item.title,
+          poster_path: item.poster_path,
+          added_at: updatedData.created_at,
+          notes: updatedData.note
+        };
       }
       
       // Adaptação para o formato esperado pela tabela watchlist
