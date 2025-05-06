@@ -63,7 +63,12 @@ const Search: React.FC = () => {
             results.map((series) => (
               <SeriesSearchResult
                 key={series.id}
-                series={series}
+                series={series} onClickWatched={() => {
+ window.location.href = `/series/${series.id}?action=watched`;
+                } }
+                onClickWatchlist={() => {
+ window.location.href = `/series/${series.id}?action=watchlist`;
+                } }
               />
             ))
           ) : (

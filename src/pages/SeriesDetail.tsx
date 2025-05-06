@@ -2,8 +2,6 @@ import React, { useEffect, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { Calendar, Clock, Plus, Check, Star, Bug } from "lucide-react";
 import Header from "../components/Header";
-import SeriesDetailHeader from "../components/SeriesDetailHeader";
-import RatingStars from "../components/RatingStars";
 import { api } from "../services/api";
 import { Series, SeriesReview, User } from "../types/Series";
 import { Button } from "@/components/ui/button";
@@ -15,6 +13,9 @@ import { supabaseService, WatchedSeries, WatchlistItem } from "../services/supab
 import { useToast } from "@/hooks/use-toast";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { useNavigate } from "react-router-dom"; // Importe useNavigate
+import SeriesDetailHeader from "../components/SeriesDetailHeader";
+import RatingStars from "../components/RatingStars";
 
 const SeriesDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -22,6 +23,7 @@ const SeriesDetail: React.FC = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   
+  const navigate = useNavigate(); // Use useNavigate
   const [series, setSeries] = useState<Series | null>(null);
   const [loading, setLoading] = useState(true);
   const [reviews, setReviews] = useState<(SeriesReview & { user: User })[]>([]);
@@ -273,14 +275,90 @@ const SeriesDetail: React.FC = () => {
       }
       
       setShowReviewDialog(false);
-      
-      // Refresh the page to update the UI
+      navigate('/profile'); // Redirect to profile page after successful save
       window.location.reload();
     } catch (error) {
       supabaseService.log("Erro ao adicionar avaliação:", error);
       toast({
         title: "Erro",
         description: "Ocorreu um erro ao adicionar sua avaliação",
+        variant: "destructive"
+      });
+    }
+  };
+  
+  const handleRemoveFromWatched = async () => {
+    if (!user || !watchedId) {
+      toast({
+        title: "Erro",
+        description: "Não foi possível remover da lista de assistidos",
+        variant: "destructive"
+      });
+      return;
+    }
+  
+    try {
+      supabaseService.log(`Iniciando remoção da série assistida: ${watchedId}`);
+      const success = await supabaseService.deleteWatchedSeries(watchedId);
+  
+      if (success) {
+        supabaseService.log("Série removida de assistidos com sucesso:", watchedId);
+        setUserReview(null);
+        setWatchedId(null);
+        setRating(5); // Reset rating
+        setComment(""); // Reset comment
+        setWatchedDate(""); // Reset date
+  
+        toast({
+          title: "Removido de assistidos",
+          description: "A série foi removida da sua lista de assistidos com sucesso!",
+        });
+  
+        // Refresh the page to update the UI
+        window.location.reload();
+      } else {
+        supabaseService.log("Erro: Não foi possível remover de assistidos");
+        toast({
+          title: "Erro",
+          description: "Não foi possível remover da sua lista de assistidos",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      supabaseService.log("Erro ao remover de assistidos:", error);
+      toast({
+        title: "Erro",
+        description: "Ocorreu um erro ao remover da sua lista de assistidos",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleRemoveFromWatchlist = async () => {
+    if (!watchlistId) {
+      toast({
+        title: "Erro",
+        description: "Não foi possível remover da lista",
+        variant: "destructive"
+      });
+      return;
+    }
+    try {
+      supabaseService.log("Removendo da watchlist:", watchlistId);
+      await supabaseService.removeFromWatchlist(watchlistId);
+      setInWatchlist(false);
+      setWatchlistId(null);
+      toast({
+        title: "Removido da lista",
+        description: "A série foi removida da sua lista com sucesso!",
+      });
+      // Refresh the page to update the UI
+      window.location.reload();
+    } catch (error) {
+      supabaseService.log("Erro ao remover da watchlist:", error);
+      toast({
+        title: "Erro",
+        description: "Ocorreu um erro ao remover da sua lista",
         variant: "destructive"
       });
     }
@@ -396,20 +474,58 @@ const SeriesDetail: React.FC = () => {
           <Button 
             variant="default" 
             className="flex-1 flex items-center justify-center"
-            onClick={() => setShowReviewDialog(true)}
+            // onClick={() => setShowReviewDialog(true)} // Remova esta linha
+            onClick={() => navigate(location.pathname + '?action=watched')} // Adicione esta linha
           >
             <Check size={16} className="mr-2" /> 
             Marcar como assistido
           </Button>
         )}
         
+        {userReview && (
+          <Button 
+            variant="destructive" 
+            className="flex-1 flex items-center justify-center"
+            onClick={handleRemoveFromWatched}
+          >
+            Remover de Assistidos
+          </Button>
+        )}
+        
         {inWatchlist ? (
           <Button 
-            variant="outline" 
+            variant="destructive" 
             className="flex-1 flex items-center justify-center"
-            onClick={() => setShowWatchlistDialog(true)}
+            onClick={async () => {
+              if (!watchlistId) {
+                toast({
+                  title: "Erro",
+                  description: "Não foi possível remover da lista",
+                  variant: "destructive"
+                });
+                return;
+              }
+              try {
+                supabaseService.log("Removendo da watchlist:", watchlistId);
+                await supabaseService.removeFromWatchlist(watchlistId);
+                setInWatchlist(false);
+                setWatchlistId(null);
+                toast({
+                  title: "Removido da lista",
+                  description: "A série foi removida da sua lista com sucesso!",
+                });
+                // Refresh the page to update the UI
+                window.location.reload();
+              } catch (error) {
+                supabaseService.log("Erro ao remover da watchlist:", error);
+                toast({
+                  title: "Erro",
+                  description: "Ocorreu um erro ao remover da sua lista",
+                  variant: "destructive"
+                });
+              }
+            }}
           >
-            <Check size={16} className="mr-2" /> 
             Na sua lista
           </Button>
         ) : (
@@ -523,33 +639,6 @@ const SeriesDetail: React.FC = () => {
             
             <Button onClick={handleAddReview} className="w-full">
               {userReview ? "Atualizar avaliação" : "Adicionar avaliação"}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-      
-      {/* Watchlist Dialog */}
-      <Dialog open={showWatchlistDialog} onOpenChange={setShowWatchlistDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Adicionar à sua lista</DialogTitle>
-            <DialogDescription>
-              Por que você quer assistir esta série?
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div>
-              <label className="block text-sm font-medium mb-1">Por que você quer assistir:</label>
-              <Textarea 
-                placeholder="Recomendação de um amigo, continuação de outra série..."
-                value={watchlistNote}
-                onChange={(e) => setWatchlistNote(e.target.value)}
-                autoComplete="off"
-              />
-            </div>
-            
-            <Button onClick={handleAddToWatchlist} className="w-full">
-              {inWatchlist ? "Atualizar nota" : "Adicionar à lista"}
             </Button>
           </div>
         </DialogContent>

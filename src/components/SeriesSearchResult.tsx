@@ -45,35 +45,8 @@ const SeriesSearchResult: React.FC<SeriesSearchResultProps> = ({
     }
     
     try {
-      // Instead of redirecting immediately, try to add to watchlist first
-      if (!isInWatchlist) {
-        const watchlistItem = {
-          user_id: user.id,
-          series_id: series.id,
-          title: series.name,
-          poster_path: series.poster_path,
-          notes: null
-        };
-        
-        const result = await supabaseService.addToWatchlist(watchlistItem);
-        
-        if (result) {
-          toast({
-            title: "Sucesso",
-            description: "Série adicionada à sua lista de interesse"
-          });
-          if (onAddToWatchlist) onAddToWatchlist();
-        } else {
-          toast({
-            title: "Erro",
-            description: "Não foi possível adicionar à sua lista",
-            variant: "destructive"
-          });
-        }
-      } else {
-        // Redirecionar para a página de detalhes para editar
-        window.location.href = `/series/${series.id}?action=watchlist`;
-      }
+      // Redirecionar para a página de detalhes para adicionar/editar a watchlist
+      window.location.href = `/series/${series.id}?action=watchlist`;
     } catch (error) {
       console.error("Error adding to watchlist:", error);
       toast({
@@ -95,39 +68,8 @@ const SeriesSearchResult: React.FC<SeriesSearchResultProps> = ({
     }
     
     try {
-      // Instead of redirecting immediately, try to add to watched first
-      if (!isWatched) {
-        const watchedSeries = {
-          user_id: user.id,
-          series_id: series.id,
-          title: series.name,
-          poster_path: series.poster_path,
-          rating: 5,  // Default rating
-          comment: "",
-          watched_at: new Date().toISOString()
-        };
-        
-        const result = await supabaseService.addWatchedSeries(watchedSeries);
-        
-        if (result) {
-          toast({
-            title: "Sucesso",
-            description: "Série marcada como assistida"
-          });
-          if (onAddToWatched) onAddToWatched();
-        } else {
-          toast({
-            title: "Erro",
-            description: "Não foi possível marcar como assistida",
-            variant: "destructive"
-          });
-          // Log detailed error info for debugging
-          supabaseService.log("Falha ao marcar como assistida:", watchedSeries);
-        }
-      } else {
-        // Redirecionar para a página de detalhes para editar
-        window.location.href = `/series/${series.id}?action=watched`;
-      }
+      // Redirecionar para a página de detalhes para adicionar/editar a avaliação
+      window.location.href = `/series/${series.id}?action=watched`;
     } catch (error) {
       console.error("Error adding to watched:", error);
       toast({
