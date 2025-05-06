@@ -1,27 +1,110 @@
 
 import React from "react";
 import { Link } from "react-router-dom";
-import { Plus } from "lucide-react";
+import { Plus, Check } from "lucide-react";
 import { Series } from "../types/Series";
 import { api } from "../services/api";
 import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
+import { supabaseService } from "../services/supabaseService";
+import { useAuth } from "../hooks/useAuth";
 
 interface SeriesSearchResultProps {
   series: Series;
   onAddToWatchlist?: () => void;
   onAddToWatched?: () => void;
+  isInWatchlist?: boolean;
+  isWatched?: boolean;
 }
 
 const SeriesSearchResult: React.FC<SeriesSearchResultProps> = ({ 
   series, 
   onAddToWatchlist,
-  onAddToWatched
+  onAddToWatched,
+  isInWatchlist = false,
+  isWatched = false
 }) => {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  
   // Get year from date string safely
   const getYear = (dateString: string) => {
     if (!dateString) return '';
     const date = new Date(dateString);
     return !isNaN(date.getTime()) ? date.getFullYear() : '';
+  };
+  
+  const handleAddToWatchlist = async () => {
+    if (!user) {
+      toast({
+        title: "Erro",
+        description: "Você precisa estar logado para adicionar à sua lista",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    try {
+      const watchlistData = {
+        user_id: user.id,
+        series_id: series.id,
+        title: series.name,
+        poster_path: series.poster_path,
+        notes: ""
+      };
+      
+      const result = await supabaseService.addToWatchlist(watchlistData);
+      
+      if (result) {
+        toast({
+          title: "Adicionado à lista",
+          description: "A série foi adicionada à sua lista com sucesso!",
+        });
+        
+        if (onAddToWatchlist) {
+          onAddToWatchlist();
+        }
+        
+        // Redirecionar para a página de detalhes com ação para abrir o modal
+        window.location.href = `/series/${series.id}?action=watchlist`;
+      } else {
+        toast({
+          title: "Erro",
+          description: "Não foi possível adicionar à sua lista",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error("Error adding to watchlist:", error);
+      toast({
+        title: "Erro",
+        description: "Ocorreu um erro ao adicionar à sua lista",
+        variant: "destructive"
+      });
+    }
+  };
+  
+  const handleAddToWatched = async () => {
+    if (!user) {
+      toast({
+        title: "Erro",
+        description: "Você precisa estar logado para marcar como assistido",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    try {
+      // Redirecionar para a página de detalhes com ação para abrir o modal
+      window.location.href = `/series/${series.id}?action=watched`;
+    } catch (error) {
+      console.error("Error adding to watched:", error);
+      toast({
+        title: "Erro",
+        description: "Ocorreu um erro ao marcar como assistido",
+        variant: "destructive"
+      });
+    }
   };
 
   return (
@@ -50,19 +133,29 @@ const SeriesSearchResult: React.FC<SeriesSearchResultProps> = ({
         </div>
       </Link>
       
-      {(onAddToWatchlist || onAddToWatched) && (
-        <div className="ml-2">
-          <Button
-            onClick={onAddToWatchlist || onAddToWatched}
-            size="sm"
-            variant="default"
-            className="rounded-full w-8 h-8 p-0"
-            aria-label={onAddToWatchlist ? "Adicionar à lista" : "Marcar como assistido"}
-          >
-            <Plus className="h-4 w-4" />
-          </Button>
-        </div>
-      )}
+      <div className="ml-2 flex gap-2">
+        <Button
+          onClick={handleAddToWatched}
+          size="sm"
+          variant={isWatched ? "outline" : "default"}
+          className="rounded-full w-8 h-8 p-0"
+          aria-label="Marcar como assistido"
+          title="Marcar como assistido"
+        >
+          <Check className="h-4 w-4" />
+        </Button>
+        
+        <Button
+          onClick={handleAddToWatchlist}
+          size="sm"
+          variant={isInWatchlist ? "outline" : "secondary"}
+          className="rounded-full w-8 h-8 p-0"
+          aria-label="Adicionar à lista"
+          title="Adicionar à lista"
+        >
+          <Plus className="h-4 w-4" />
+        </Button>
+      </div>
     </div>
   );
 };

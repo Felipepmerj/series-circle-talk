@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
-import { Calendar, Clock, Plus, Check, Star } from "lucide-react";
+import { Calendar, Clock, Plus, Check, Star, Bug } from "lucide-react";
 import Header from "../components/Header";
 import SeriesDetailHeader from "../components/SeriesDetailHeader";
 import RatingStars from "../components/RatingStars";
@@ -14,6 +14,8 @@ import { Input } from "@/components/ui/input";
 import { useAuth } from "../hooks/useAuth";
 import { supabaseService, WatchedSeries, WatchlistItem } from "../services/supabaseService";
 import { useToast } from "@/hooks/use-toast";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 
 const SeriesDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -45,6 +47,36 @@ const SeriesDetail: React.FC = () => {
   const [watchedId, setWatchedId] = useState<string | null>(null);
   const [watchlistId, setWatchlistId] = useState<string | null>(null);
   
+  // Debug dialog
+  const [showDebugDialog, setShowDebugDialog] = useState(false);
+  const [isDebugEnabled, setIsDebugEnabled] = useState(supabaseService.debug);
+  const [debugLogs, setDebugLogs] = useState<string[]>([]);
+  
+  // Capturar logs para o painel de debug
+  useEffect(() => {
+    const originalConsoleLog = console.log;
+    console.log = (...args) => {
+      originalConsoleLog(...args);
+      if (args[0] === '[Supabase Service]') {
+        setDebugLogs(prev => [...prev, args.slice(1).map(a => 
+          typeof a === 'object' ? JSON.stringify(a, null, 2) : a
+        ).join(' ')]);
+      }
+    };
+    
+    return () => {
+      console.log = originalConsoleLog;
+    };
+  }, []);
+  
+  useEffect(() => {
+    supabaseService.debug = isDebugEnabled;
+  }, [isDebugEnabled]);
+  
+  const clearDebugLogs = () => {
+    setDebugLogs([]);
+  };
+  
   useEffect(() => {
     const fetchSeriesDetails = async () => {
       if (!id) return;
@@ -58,11 +90,17 @@ const SeriesDetail: React.FC = () => {
           setSeries(seriesData);
           
           if (user) {
+            supabaseService.log("Usuário autenticado:", user.id);
+            
             // Check if current user has already watched this series
             const watchedItems = await supabaseService.getWatchedSeries(user.id);
+            supabaseService.log("Séries assistidas:", watchedItems);
+            
             const watchedItem = watchedItems.find(item => item.series_id === Number(id));
             
             if (watchedItem) {
+              supabaseService.log("Série já assistida:", watchedItem);
+              
               setUserReview({
                 id: watchedItem.id || "",
                 userId: watchedItem.user_id,
@@ -82,6 +120,8 @@ const SeriesDetail: React.FC = () => {
             
             // Check if in watchlist
             const watchlistItems = await supabaseService.getWatchlist(user.id);
+            supabaseService.log("Itens na watchlist:", watchlistItems);
+            
             const watchlistItem = watchlistItems.find(w => w.series_id === Number(id));
             
             setInWatchlist(!!watchlistItem);
@@ -135,6 +175,11 @@ const SeriesDetail: React.FC = () => {
         }
       } catch (error) {
         console.error("Error fetching series details:", error);
+        toast({
+          title: "Erro",
+          description: "Não foi possível carregar os detalhes da série",
+          variant: "destructive"
+        });
       } finally {
         setLoading(false);
       }
@@ -164,6 +209,8 @@ const SeriesDetail: React.FC = () => {
     }
     
     try {
+      supabaseService.log(`Iniciando processo de ${watchedId ? 'atualização' : 'adição'} de avaliação`);
+      
       // Prepare data for watched series
       const watchedData: WatchedSeries = {
         user_id: user.id,
@@ -174,6 +221,8 @@ const SeriesDetail: React.FC = () => {
         comment: comment,
         watched_at: watchedDate || new Date().toISOString()
       };
+      
+      supabaseService.log("Dados a serem salvos:", watchedData);
       
       let newReview;
       
@@ -196,6 +245,8 @@ const SeriesDetail: React.FC = () => {
       }
       
       if (newReview) {
+        supabaseService.log("Avaliação salva com sucesso:", newReview);
+        
         setUserReview({
           id: newReview.id || "",
           userId: newReview.user_id,
@@ -205,10 +256,18 @@ const SeriesDetail: React.FC = () => {
           watchedOn: newReview.watched_at,
           createdAt: newReview.created_at || new Date().toISOString()
         });
+      } else {
+        supabaseService.log("Erro: Não foi possível salvar a avaliação");
+        toast({
+          title: "Erro",
+          description: "Não foi possível salvar sua avaliação",
+          variant: "destructive"
+        });
       }
       
       // If it was in watchlist, remove from watchlist
       if (inWatchlist && watchlistId) {
+        supabaseService.log("Removendo da watchlist após marcar como assistido");
         await supabaseService.removeFromWatchlist(watchlistId);
         setInWatchlist(false);
         setWatchlistId(null);
@@ -219,7 +278,7 @@ const SeriesDetail: React.FC = () => {
       // Refresh the page to update the UI
       window.location.reload();
     } catch (error) {
-      console.error("Error adding review:", error);
+      supabaseService.log("Erro ao adicionar avaliação:", error);
       toast({
         title: "Erro",
         description: "Ocorreu um erro ao adicionar sua avaliação",
@@ -239,6 +298,8 @@ const SeriesDetail: React.FC = () => {
     }
     
     try {
+      supabaseService.log(`Iniciando processo de ${watchlistId ? 'atualização' : 'adição'} à watchlist`);
+      
       // Prepare data for watchlist
       const watchlistData: WatchlistItem = {
         user_id: user.id,
@@ -247,6 +308,8 @@ const SeriesDetail: React.FC = () => {
         poster_path: series.poster_path,
         notes: watchlistNote
       };
+      
+      supabaseService.log("Dados a serem salvos:", watchlistData);
       
       let result;
       
@@ -268,13 +331,24 @@ const SeriesDetail: React.FC = () => {
         });
       }
       
+      if (result) {
+        supabaseService.log("Item salvo na watchlist com sucesso:", result);
+      } else {
+        supabaseService.log("Erro: Não foi possível salvar na watchlist");
+        toast({
+          title: "Erro",
+          description: "Não foi possível adicionar à sua lista",
+          variant: "destructive"
+        });
+      }
+      
       setInWatchlist(true);
       setShowWatchlistDialog(false);
       
       // Refresh the page to update the UI
       window.location.reload();
     } catch (error) {
-      console.error("Error adding to watchlist:", error);
+      supabaseService.log("Erro ao adicionar à watchlist:", error);
       toast({
         title: "Erro",
         description: "Ocorreu um erro ao adicionar à sua lista",
@@ -317,7 +391,7 @@ const SeriesDetail: React.FC = () => {
             onClick={() => setShowReviewDialog(true)}
           >
             <Check size={16} className="mr-2" /> 
-            Já Assisti ({userReview.rating}/10)
+            Já Assisti ({userReview.rating.toFixed(1)}/10)
           </Button>
         ) : (
           <Button 
@@ -351,8 +425,21 @@ const SeriesDetail: React.FC = () => {
         )}
       </div>
       
+      {/* Debug button */}
+      <div className="px-4 mt-4 flex justify-end">
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          onClick={() => setShowDebugDialog(true)}
+          className="text-muted-foreground"
+        >
+          <Bug size={14} className="mr-1" />
+          Debug
+        </Button>
+      </div>
+      
       {/* Friends reviews */}
-      <div className="mt-8 px-4">
+      <div className="mt-6 px-4">
         <h2 className="text-lg font-medium mb-4">O que seus amigos acharam</h2>
         
         {reviews.length > 0 ? (
@@ -410,6 +497,7 @@ const SeriesDetail: React.FC = () => {
                   rating={rating} 
                   onChange={setRating} 
                   size={32}
+                  showPreciseSlider={true}
                 />
               </div>
             </div>
@@ -461,6 +549,83 @@ const SeriesDetail: React.FC = () => {
             <Button onClick={handleAddToWatchlist} className="w-full">
               {inWatchlist ? "Atualizar nota" : "Adicionar à lista"}
             </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Debug Dialog */}
+      <Dialog open={showDebugDialog} onOpenChange={setShowDebugDialog}>
+        <DialogContent className="max-w-3xl h-[80vh]">
+          <DialogHeader>
+            <DialogTitle>Painel de Depuração (Debug)</DialogTitle>
+            <DialogDescription>
+              Ferramentas para depurar a integração com o Supabase
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4 overflow-hidden flex flex-col h-full">
+            <div className="flex items-center space-x-2">
+              <Switch 
+                id="debug-mode" 
+                checked={isDebugEnabled}
+                onCheckedChange={setIsDebugEnabled}
+              />
+              <Label htmlFor="debug-mode">Habilitar modo de depuração</Label>
+              
+              <div className="flex-1"></div>
+              
+              <Button 
+                onClick={clearDebugLogs} 
+                variant="outline" 
+                size="sm"
+              >
+                Limpar logs
+              </Button>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-sm font-medium">Status da Autenticação:</h3>
+                <pre className="text-xs bg-muted p-2 rounded-md overflow-x-auto mt-1">
+                  {user ? JSON.stringify({ id: user.id, email: user.email }, null, 2) : "Usuário não autenticado"}
+                </pre>
+              </div>
+              
+              <div>
+                <h3 className="text-sm font-medium">Detalhes do Watchlist:</h3>
+                <pre className="text-xs bg-muted p-2 rounded-md overflow-x-auto mt-1">
+                  {JSON.stringify({ inWatchlist, watchlistId, watchlistNote }, null, 2)}
+                </pre>
+              </div>
+              
+              <div>
+                <h3 className="text-sm font-medium">Detalhes da Avaliação:</h3>
+                <pre className="text-xs bg-muted p-2 rounded-md overflow-x-auto mt-1">
+                  {JSON.stringify({ 
+                    hasReview: !!userReview, 
+                    watchedId, 
+                    rating, 
+                    comment,
+                    watchedDate
+                  }, null, 2)}
+                </pre>
+              </div>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto">
+              <h3 className="text-sm font-medium mb-2">Logs:</h3>
+              <div className="bg-black text-green-400 p-3 rounded-md h-full text-xs font-mono overflow-y-auto">
+                {debugLogs.length > 0 ? (
+                  debugLogs.map((log, i) => (
+                    <div key={i} className="mb-1">
+                      <span className="opacity-50">[{new Date().toISOString()}]</span> {log}
+                    </div>
+                  ))
+                ) : (
+                  <p className="opacity-50">Nenhum log registrado ainda.</p>
+                )}
+              </div>
+            </div>
           </div>
         </DialogContent>
       </Dialog>

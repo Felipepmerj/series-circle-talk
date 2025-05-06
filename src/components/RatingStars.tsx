@@ -1,23 +1,36 @@
 
-import React from "react";
+import React, { useState } from "react";
 import { Star, StarHalf } from "lucide-react";
+import { Slider } from "@/components/ui/slider";
 
 interface RatingStarsProps {
   rating: number;
   max?: number;
   size?: number;
   onChange?: (rating: number) => void;
+  showPreciseSlider?: boolean;
 }
 
 const RatingStars: React.FC<RatingStarsProps> = ({ 
   rating, 
   max = 10,
   size = 20,
-  onChange
+  onChange,
+  showPreciseSlider = false
 }) => {
+  const [sliderValue, setSliderValue] = useState(rating);
+  
   // Convert to 5 stars (if using 10-scale)
   const displayRating = max === 10 ? rating / 2 : rating;
   const displayMax = max === 10 ? 5 : max;
+  
+  const handleSliderChange = (value: number[]) => {
+    const newValue = value[0];
+    setSliderValue(newValue);
+    if (onChange) {
+      onChange(newValue);
+    }
+  };
   
   // Create an array of stars
   const renderStars = () => {
@@ -55,9 +68,26 @@ const RatingStars: React.FC<RatingStarsProps> = ({
   };
   
   return (
-    <div className="flex">
-      {renderStars()}
-      {max === 10 && <span className="ml-2 text-sm text-muted-foreground">{rating}/10</span>}
+    <div className="space-y-2">
+      <div className="flex">
+        {renderStars()}
+        {max === 10 && <span className="ml-2 text-sm text-muted-foreground">{rating.toFixed(1)}/10</span>}
+      </div>
+      
+      {showPreciseSlider && onChange && (
+        <div className="pt-2">
+          <Slider
+            value={[sliderValue]}
+            min={0}
+            max={10}
+            step={0.1}
+            onValueChange={handleSliderChange}
+          />
+          <div className="text-xs text-center mt-1 text-muted-foreground">
+            Ajuste preciso: {sliderValue.toFixed(1)}/10
+          </div>
+        </div>
+      )}
     </div>
   );
 };
