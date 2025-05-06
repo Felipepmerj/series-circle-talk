@@ -46,39 +46,41 @@ export const supabaseService = {
     try {
       this.log(`Verificando se o usuário existe: ${userId}`);
       
-      // Verificar se o usuário existe na tabela users
+      // Verificar se o usuário existe na tabela profiles
       const { data: existingUser, error: checkError } = await supabase
-        .from('users')
+        .from('profiles')
         .select('id')
         .eq('id', userId)
-        .single();
+        .maybeSingle();  // Use maybeSingle() instead of single()
         
-      if (checkError) {
-        this.log("Usuário não encontrado, criando novo");
+      if (checkError || !existingUser) {
+        this.log("Perfil não encontrado, verificando se precisa criar");
         
-        // Criar usuário na tabela users
-        const { data: newUser, error: createError } = await supabase
-          .from('users')
+        // Se o perfil não existe, pode ser que o usuário exista na auth mas sem perfil
+        // Vamos criar um perfil para o usuário
+        const name = email ? email.split('@')[0] : `user-${userId.substring(0, 8)}`;
+        
+        const { data: newProfile, error: createError } = await supabase
+          .from('profiles')
           .insert({
             id: userId,
-            email: email || `user-${userId}@example.com`, // Valor padrão se email não fornecido
-            username: `user-${userId.substring(0, 8)}` // Nome de usuário baseado no ID
+            name: name
           })
           .select();
           
         if (createError) {
-          this.log("Erro ao criar usuário:", createError);
+          this.log("Erro ao criar perfil:", createError);
           return false;
         }
         
-        this.log("Usuário criado com sucesso:", newUser);
+        this.log("Perfil criado com sucesso:", newProfile);
         return true;
       }
       
-      this.log("Usuário já existe:", existingUser);
+      this.log("Perfil já existe:", existingUser);
       return true;
     } catch (e) {
-      this.log("Exceção ao verificar/criar usuário:", e);
+      this.log("Exceção ao verificar/criar perfil:", e);
       return false;
     }
   },
@@ -90,7 +92,7 @@ export const supabaseService = {
         .from('profiles')
         .select('*')
         .eq('id', userId)
-        .single();
+        .maybeSingle();
         
       if (error) {
         this.log("Erro ao buscar perfil:", error);
@@ -167,11 +169,11 @@ export const supabaseService = {
     try {
       this.log(`Adicionando série assistida:`, series);
       
-      // Garantir que o usuário existe antes de adicionar
+      // Garantir que o perfil do usuário existe antes de adicionar
       const userExists = await this.ensureUserExists(series.user_id);
       
       if (!userExists) {
-        this.log("Não foi possível adicionar a série assistida, usuário não existe e não pôde ser criado");
+        this.log("Não foi possível adicionar a série assistida, perfil não existe e não pôde ser criado");
         return null;
       }
       
@@ -324,11 +326,11 @@ export const supabaseService = {
     try {
       this.log(`Adicionando à watchlist:`, item);
       
-      // Garantir que o usuário existe antes de adicionar
+      // Garantir que o perfil do usuário existe antes de adicionar
       const userExists = await this.ensureUserExists(item.user_id);
       
       if (!userExists) {
-        this.log("Não foi possível adicionar à watchlist, usuário não existe e não pôde ser criado");
+        this.log("Não foi possível adicionar à watchlist, perfil não existe e não pôde ser criado");
         return null;
       }
       
