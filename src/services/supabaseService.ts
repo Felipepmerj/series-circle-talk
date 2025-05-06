@@ -41,6 +41,48 @@ export const supabaseService = {
     }
   },
   
+  // Verificar e criar usuário se necessário
+  async ensureUserExists(userId: string, email?: string): Promise<boolean> {
+    try {
+      this.log(`Verificando se o usuário existe: ${userId}`);
+      
+      // Verificar se o usuário existe na tabela users
+      const { data: existingUser, error: checkError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('id', userId)
+        .single();
+        
+      if (checkError) {
+        this.log("Usuário não encontrado, criando novo");
+        
+        // Criar usuário na tabela users
+        const { data: newUser, error: createError } = await supabase
+          .from('users')
+          .insert({
+            id: userId,
+            email: email || `user-${userId}@example.com`, // Valor padrão se email não fornecido
+            username: `user-${userId.substring(0, 8)}` // Nome de usuário baseado no ID
+          })
+          .select();
+          
+        if (createError) {
+          this.log("Erro ao criar usuário:", createError);
+          return false;
+        }
+        
+        this.log("Usuário criado com sucesso:", newUser);
+        return true;
+      }
+      
+      this.log("Usuário já existe:", existingUser);
+      return true;
+    } catch (e) {
+      this.log("Exceção ao verificar/criar usuário:", e);
+      return false;
+    }
+  },
+  
   // Perfil de usuário
   async getUserProfile(userId: string): Promise<UserProfile | null> {
     try {
@@ -124,6 +166,14 @@ export const supabaseService = {
   async addWatchedSeries(series: WatchedSeries): Promise<WatchedSeries | null> {
     try {
       this.log(`Adicionando série assistida:`, series);
+      
+      // Garantir que o usuário existe antes de adicionar
+      const userExists = await this.ensureUserExists(series.user_id);
+      
+      if (!userExists) {
+        this.log("Não foi possível adicionar a série assistida, usuário não existe e não pôde ser criado");
+        return null;
+      }
       
       // Adaptação para o formato esperado pela tabela watched_shows
       const watchedShow = {
@@ -273,6 +323,14 @@ export const supabaseService = {
   async addToWatchlist(item: WatchlistItem): Promise<WatchlistItem | null> {
     try {
       this.log(`Adicionando à watchlist:`, item);
+      
+      // Garantir que o usuário existe antes de adicionar
+      const userExists = await this.ensureUserExists(item.user_id);
+      
+      if (!userExists) {
+        this.log("Não foi possível adicionar à watchlist, usuário não existe e não pôde ser criado");
+        return null;
+      }
       
       // Adaptação para o formato esperado pela tabela watchlist
       const watchlistItem = {
