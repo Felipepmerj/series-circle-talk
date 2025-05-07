@@ -162,6 +162,34 @@ export const supabaseService = {
     }
   },
   
+  // Método para buscar detalhes de uma série assistida específica pelo ID
+  async getWatchedShowDetails(showId: string): Promise<{ rating: number | null; comment: string | null } | null> {
+    try {
+      this.log(`Buscando detalhes da série assistida ${showId}`);
+      
+      const { data, error } = await supabase
+        .from('watched_shows')
+        .select('rating, review')
+        .eq('id', showId)
+        .single();
+        
+      if (error) {
+        this.log("Erro ao buscar detalhes da série assistida:", error);
+        return null;
+      }
+      
+      this.log("Detalhes da série assistida encontrados:", data);
+      
+      return {
+        rating: data.rating,
+        comment: data.review
+      };
+    } catch (e) {
+      this.log("Exceção ao buscar detalhes da série assistida:", e);
+      return null;
+    }
+  },
+  
   async addWatchedSeries(series: WatchedSeries): Promise<WatchedSeries | null> {
     try {
       this.log(`Adicionando série assistida:`, series);

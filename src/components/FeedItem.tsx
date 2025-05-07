@@ -5,6 +5,7 @@ import { MessageCircle } from "lucide-react";
 import { api } from "../services/api";
 import { Series } from "../types/Series";
 import RatingStars from "./RatingStars";
+import { supabaseService } from "../services/supabaseService";
 
 interface FeedItemProps {
   userId: string;
@@ -42,17 +43,25 @@ const FeedItem: React.FC<FeedItemProps> = ({
         const seriesData = await api.getSeriesById(seriesId);
         if (seriesData) setSeries(seriesData);
         
-        // Se for um review, obter detalhes adicionais
+        // Se for um review, obter detalhes adicionais do Supabase
         if (type === 'review' && reviewId) {
-          // Aqui você pode buscar detalhes da avaliação de alguma forma
-          // Por enquanto, usamos os dados que já temos
-          const dummyRating = Math.floor(Math.random() * 5) + 1;
-          setRating(dummyRating);
-          setComment("Gostei muito desta série!");
+          // Buscar detalhes do review diretamente do Supabase
+          const reviewDetails = await supabaseService.getWatchedShowDetails(reviewId);
+          
+          if (reviewDetails) {
+            setRating(reviewDetails.rating);
+            setComment(reviewDetails.comment);
+          }
         }
         
-        // Buscar avatar do usuário (placeholder por enquanto)
-        setProfilePic(`https://api.dicebear.com/7.x/initials/svg?seed=${username || userId}`);
+        // Buscar avatar do usuário no Supabase
+        const userProfile = await supabaseService.getUserProfile(userId);
+        if (userProfile && userProfile.profile_pic) {
+          setProfilePic(userProfile.profile_pic);
+        } else {
+          // Fallback para avatar gerado
+          setProfilePic(`https://api.dicebear.com/7.x/initials/svg?seed=${username || userId}`);
+        }
       } catch (error) {
         console.error("Error fetching feed item data:", error);
       } finally {
@@ -67,10 +76,8 @@ const FeedItem: React.FC<FeedItemProps> = ({
     return <div className="p-4 border rounded-lg animate-pulse bg-muted/50 mb-4">Carregando...</div>;
   }
   
-  const formattedDate = new Date(timestamp).toLocaleDateString('pt-BR', {
-    day: 'numeric',
-    month: 'short'
-  });
+  // Formato ano apenas
+  const yearWatched = new Date(timestamp).getFullYear();
 
   return (
     <div className="bg-white shadow rounded-lg overflow-hidden mb-4">
@@ -84,7 +91,7 @@ const FeedItem: React.FC<FeedItemProps> = ({
           />
           <div className="ml-3">
             <h4 className="font-medium">{username || "Usuário"}</h4>
-            <p className="text-xs text-muted-foreground">{formattedDate}</p>
+            <p className="text-xs text-muted-foreground">{yearWatched}</p>
           </div>
         </Link>
       </div>

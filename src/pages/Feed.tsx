@@ -48,7 +48,7 @@ const Feed: React.FC = () => {
               seriesId: parseInt(item.tmdb_id, 10),
               type: 'review' as const,
               timestamp: item.created_at || item.watched_at || new Date().toISOString(),
-              reviewId: item.id,
+              reviewId: item.id, // Importante: Passando o ID correto do review
               seriesName: seriesData?.name || "Série desconhecida",
               username: userProfile?.name || "Usuário"
             };
