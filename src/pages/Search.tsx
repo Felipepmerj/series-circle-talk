@@ -1,13 +1,13 @@
 
 import React, { useState } from "react";
-import { Home, Search as SearchIcon, ListVideo, TrendingUp, Users } from "lucide-react";
-import { Link } from "react-router-dom";
+import { SearchIcon } from "lucide-react";
 import Header from "../components/Header";
 import { api } from "../services/api";
 import { Series } from "../types/Series";
 import SeriesSearchResult from "../components/SeriesSearchResult";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import BottomNav from "../components/BottomNav";
 
 const Search: React.FC = () => {
   const [query, setQuery] = useState("");
@@ -63,12 +63,13 @@ const Search: React.FC = () => {
             results.map((series) => (
               <SeriesSearchResult
                 key={series.id}
-                series={series} onClickWatched={() => {
- window.location.href = `/series/${series.id}?action=watched`;
-                } }
+                series={series}
+                onClickWatched={() => {
+                  window.location.href = `/series/${series.id}?action=watched`;
+                }}
                 onClickWatchlist={() => {
- window.location.href = `/series/${series.id}?action=watchlist`;
-                } }
+                  window.location.href = `/series/${series.id}?action=watchlist`;
+                }}
               />
             ))
           ) : (
@@ -86,31 +87,8 @@ const Search: React.FC = () => {
         )}
       </div>
       
-      {/* Bottom Navigation */}
-      <div className="bottom-nav">
-        <div className="bottom-nav-content">
-          <Link to="/" className="nav-tab inactive p-3">
-            <Home size={22} />
-            <span>Início</span>
-          </Link>
-          <Link to="/search" className="nav-tab active p-3">
-            <SearchIcon size={22} />
-            <span>Busca</span>
-          </Link>
-          <Link to="/watched" className="nav-tab inactive p-3">
-            <ListVideo size={22} />
-            <span>Minhas Séries</span>
-          </Link>
-          <Link to="/ranking" className="nav-tab inactive p-3">
-            <TrendingUp size={22} />
-            <span>Ranking</span>
-          </Link>
-          <Link to="/invite" className="nav-tab inactive p-3">
-            <Users size={22} />
-            <span>Amigos</span>
-          </Link>
-        </div>
-      </div>
+      {/* Use the reusable BottomNav component */}
+      <BottomNav />
     </div>
   );
 };

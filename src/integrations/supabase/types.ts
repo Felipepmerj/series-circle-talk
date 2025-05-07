@@ -33,13 +33,6 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "comments_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "comments_watched_show_id_fkey"
             columns: ["watched_show_id"]
             isOneToOne: false
@@ -70,22 +63,7 @@ export type Database = {
           status?: string
           user_id?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "friendships_friend_id_fkey"
-            columns: ["friend_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "friendships_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       profiles: {
         Row: {
@@ -135,30 +113,6 @@ export type Database = {
         }
         Relationships: []
       }
-      users: {
-        Row: {
-          avatar_url: string | null
-          created_at: string | null
-          email: string
-          id: string
-          username: string
-        }
-        Insert: {
-          avatar_url?: string | null
-          created_at?: string | null
-          email: string
-          id?: string
-          username: string
-        }
-        Update: {
-          avatar_url?: string | null
-          created_at?: string | null
-          email?: string
-          id?: string
-          username?: string
-        }
-        Relationships: []
-      }
       watched_shows: {
         Row: {
           created_at: string | null
@@ -187,15 +141,7 @@ export type Database = {
           user_id?: string | null
           watched_at?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "watched_shows_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       watchlist: {
         Row: {
@@ -219,15 +165,7 @@ export type Database = {
           tmdb_id?: string
           user_id?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "watchlist_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
     }
     Views: {

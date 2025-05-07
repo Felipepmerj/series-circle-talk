@@ -1,24 +1,56 @@
 
-import React, { useState } from "react";
-import { Home, Search, ListChecks, TrendingUp, Users, Mail, Share2, Copy, Check, MessageSquare } from "lucide-react";
-import { Link } from "react-router-dom";  // Add this import
+import React, { useState, useEffect } from "react";
+import { MessageSquare, Share2, Copy, Check, Mail, Users } from "lucide-react";
 import Header from "../components/Header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { api } from "../services/api";
 import { toast } from "sonner";
 import BottomNav from "../components/BottomNav";
+import { supabaseService } from "../services/supabaseService";
+import { useAuth } from "../hooks/useAuth";
+
+interface FriendProfile {
+  id: string;
+  name: string;
+  profile_pic: string | null;
+}
 
 const Invite: React.FC = () => {
+  const { user } = useAuth();
   const [email, setEmail] = useState("");
   const [copied, setCopied] = useState(false);
   const [inviteSent, setInviteSent] = useState(false);
+  const [friends, setFriends] = useState<FriendProfile[]>([]);
+  const [loading, setLoading] = useState(true);
+  
+  useEffect(() => {
+    const fetchProfiles = async () => {
+      try {
+        setLoading(true);
+        const profiles = await supabaseService.getAllProfiles();
+        
+        // Filtrar o usuário atual da lista
+        const filteredProfiles = profiles.filter(profile => 
+          user ? profile.id !== user.id : true
+        );
+        
+        setFriends(filteredProfiles);
+      } catch (error) {
+        console.error("Erro ao buscar perfis:", error);
+        toast.error("Não foi possível carregar a lista de amigos");
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchProfiles();
+  }, [user]);
   
   const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // In a real app, this would send an email invitation
-    // For now, just simulate success
+    // Em um app real, isso enviaria um email de convite
+    // Por enquanto, apenas simular sucesso
     setInviteSent(true);
     toast.success("Convite enviado com sucesso!");
     setTimeout(() => setInviteSent(false), 3000);
@@ -26,13 +58,13 @@ const Invite: React.FC = () => {
   };
   
   const appUrl = window.location.origin;
-  const inviteLink = `${appUrl}/register?invitedBy=user1`;
+  const inviteLink = `${appUrl}/register?invitedBy=${user?.id || 'user'}`;
   
   const handleCopyLink = () => {
-    // Copy to clipboard
+    // Copiar para a área de transferência
     navigator.clipboard.writeText(inviteLink);
     
-    // Show success message
+    // Mostrar mensagem de sucesso
     setCopied(true);
     toast.success("Link copiado para a área de transferência!");
     setTimeout(() => setCopied(false), 3000);
@@ -43,23 +75,6 @@ const Invite: React.FC = () => {
     const whatsappUrl = `https://wa.me/?text=${message}`;
     window.open(whatsappUrl, '_blank');
   };
-  
-  // Get friends for the friends list
-  const [friends, setFriends] = React.useState<{ id: string; name: string; profilePic?: string; }[]>([]);
-  
-  React.useEffect(() => {
-    const fetchFriends = async () => {
-      const users = await api.getUsers();
-      // Exclude current user
-      setFriends(users.filter(user => user.id !== "user1").map(user => ({
-        id: user.id,
-        name: user.name,
-        profilePic: user.profilePic
-      })));
-    };
-    
-    fetchFriends();
-  }, []);
   
   return (
     <div className="app-container">
@@ -146,28 +161,39 @@ const Invite: React.FC = () => {
       </div>
       
       {/* Friends list */}
-      <div className="mt-6">
-        <h2 className="text-lg font-medium mb-3">Seus amigos ({friends.length})</h2>
+      <div className="mt-6 pb-24">
+        <h2 className="text-lg font-medium mb-3">
+          {loading ? "Carregando..." : `Usuários (${friends.length})`}
+        </h2>
         
         <div className="bg-white rounded-lg shadow overflow-hidden">
-          {friends.map((friend) => (
-            <Link 
-              key={friend.id}
-              to={`/profile/${friend.id}`}
-              className="flex items-center p-4 border-b last:border-b-0 hover:bg-muted/10"
-            >
-              <img 
-                src={friend.profilePic || "/placeholder.svg"} 
-                alt={friend.name}
-                className="w-10 h-10 rounded-full object-cover"
-              />
-              <p className="ml-3 font-medium">{friend.name}</p>
-            </Link>
-          ))}
+          {loading ? (
+            <div className="p-4 text-center">Carregando usuários...</div>
+          ) : friends.length > 0 ? (
+            friends.map((friend) => (
+              <div 
+                key={friend.id}
+                className="flex items-center p-4 border-b last:border-b-0 hover:bg-muted/10"
+              >
+                <img 
+                  src={friend.profile_pic || `https://api.dicebear.com/7.x/initials/svg?seed=${friend.name || friend.id}`} 
+                  alt={friend.name || "Usuário"}
+                  className="w-10 h-10 rounded-full object-cover"
+                />
+                <p className="ml-3 font-medium">{friend.name || "Usuário"}</p>
+              </div>
+            ))
+          ) : (
+            <div className="p-8 text-center">
+              <Users size={40} className="mx-auto text-muted-foreground" />
+              <p className="mt-4 text-muted-foreground">
+                Nenhum usuário encontrado
+              </p>
+            </div>
+          )}
         </div>
       </div>
       
-      {/* Bottom Navigation */}
       <BottomNav />
     </div>
   );

@@ -12,6 +12,7 @@ import Profile from "./pages/Profile";
 import WatchList from "./pages/WatchList";
 import Ranking from "./pages/Ranking";
 import Invite from "./pages/Invite";
+import Feed from "./pages/Feed";
 import NotFound from "./pages/NotFound";
 import Auth from "./pages/Auth";
 import Register from "./pages/Register";
@@ -29,6 +30,7 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/search" element={<Search />} />
+          <Route path="/feed" element={<Feed />} />
           <Route path="/series/:id" element={<SeriesDetail />} />
           <Route path="/profile/:userId?" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
           <Route path="/user-profile" element={<ProtectedRoute><UserProfile /></ProtectedRoute>} />

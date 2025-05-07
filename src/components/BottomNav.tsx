@@ -1,7 +1,7 @@
 
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Home, Search, ListChecks, TrendingUp, Users } from "lucide-react";
+import { Home, Search, ListChecks, TrendingUp, Users, ActivityIcon } from "lucide-react";
 
 const BottomNav: React.FC = () => {
   const location = useLocation();
@@ -20,6 +20,10 @@ const BottomNav: React.FC = () => {
           <Home size={22} />
           <span>Início</span>
         </Link>
+        <Link to="/feed" className={`nav-tab ${isActive("/feed") ? "active" : "inactive"} p-3`}>
+          <ActivityIcon size={22} />
+          <span>Feed</span>
+        </Link>
         <Link to="/search" className={`nav-tab ${isActive("/search") ? "active" : "inactive"} p-3`}>
           <Search size={22} />
           <span>Busca</span>
@@ -27,10 +31,6 @@ const BottomNav: React.FC = () => {
         <Link to="/watched" className={`nav-tab ${isActive("/watched") ? "active" : "inactive"} p-3`}>
           <ListChecks size={22} />
           <span>Minhas Séries</span>
-        </Link>
-        <Link to="/ranking" className={`nav-tab ${isActive("/ranking") ? "active" : "inactive"} p-3`}>
-          <TrendingUp size={22} />
-          <span>Ranking</span>
         </Link>
         <Link to="/invite" className={`nav-tab ${isActive("/invite") ? "active" : "inactive"} p-3`}>
           <Users size={22} />

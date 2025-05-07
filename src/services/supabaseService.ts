@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { User } from "../types/Series";
 
@@ -514,6 +513,77 @@ export const supabaseService = {
     } catch (e) {
       this.log("Exceção ao remover da watchlist:", e);
       return false;
+    }
+  },
+  
+  // Buscar todos os perfis de usuário
+  async getAllProfiles(): Promise<UserProfile[]> {
+    try {
+      this.log("Buscando todos os perfis de usuários");
+      
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .order('created_at', { ascending: false });
+        
+      if (error) {
+        this.log("Erro ao buscar perfis:", error);
+        return [];
+      }
+      
+      this.log(`Encontrados ${data.length} perfis`);
+      return data;
+    } catch (e) {
+      this.log("Exceção ao buscar perfis:", e);
+      return [];
+    }
+  },
+  
+  // Buscar todas as séries assistidas (para o feed)
+  async getAllWatchedShows(): Promise<any[]> {
+    try {
+      this.log("Buscando todas as séries assistidas para o feed");
+      
+      const { data, error } = await supabase
+        .from('watched_shows')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(50);
+        
+      if (error) {
+        this.log("Erro ao buscar séries assistidas:", error);
+        return [];
+      }
+      
+      this.log(`Encontradas ${data.length} séries assistidas`);
+      return data;
+    } catch (e) {
+      this.log("Exceção ao buscar séries assistidas:", e);
+      return [];
+    }
+  },
+  
+  // Buscar todos os itens de watchlist (para o feed)
+  async getAllWatchlistItems(): Promise<any[]> {
+    try {
+      this.log("Buscando todos os itens de watchlist para o feed");
+      
+      const { data, error } = await supabase
+        .from('watchlist')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(50);
+        
+      if (error) {
+        this.log("Erro ao buscar itens de watchlist:", error);
+        return [];
+      }
+      
+      this.log(`Encontrados ${data.length} itens de watchlist`);
+      return data;
+    } catch (e) {
+      this.log("Exceção ao buscar itens de watchlist:", e);
+      return [];
     }
   },
   
