@@ -6,7 +6,6 @@ import BottomNav from "../components/BottomNav";
 import { useAuth } from "../hooks/useAuth";
 import { supabaseService } from "../services/supabaseService";
 import { api } from "../services/api";
-import { Series } from "../types/Series";
 import { Loader } from "lucide-react";
 import { toast } from "sonner";
 
@@ -23,17 +22,14 @@ interface FeedActivity {
 }
 
 const Feed: React.FC = () => {
-  const { user } = useAuth();
   const [activities, setActivities] = useState<FeedActivity[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!user) return;
-
     const loadFeedActivities = async () => {
       setLoading(true);
       try {
-        // Obter todas as séries assistidas dos amigos (todos os usuários por enquanto)
+        // Obter todas as séries assistidas dos usuários registrados no Supabase
         const watchedShows = await supabaseService.getAllWatchedShows();
         const watchlistItems = await supabaseService.getAllWatchlistItems();
         
@@ -43,6 +39,8 @@ const Feed: React.FC = () => {
             // Buscar informações da série
             const seriesData = await api.getSeriesById(parseInt(item.tmdb_id, 10));
             const userProfile = await supabaseService.getUserProfile(item.user_id);
+            
+            if (!seriesData || !userProfile) return null;
             
             return {
               id: item.id,
@@ -66,6 +64,8 @@ const Feed: React.FC = () => {
             // Buscar informações da série
             const seriesData = await api.getSeriesById(parseInt(item.tmdb_id, 10));
             const userProfile = await supabaseService.getUserProfile(item.user_id);
+            
+            if (!seriesData || !userProfile) return null;
             
             return {
               id: item.id,
@@ -98,25 +98,13 @@ const Feed: React.FC = () => {
     };
 
     loadFeedActivities();
-  }, [user]);
-
-  if (!user) {
-    return (
-      <div className="app-container">
-        <Header title="Feed de Atividades" />
-        <div className="p-8 text-center">
-          <p>Você precisa estar logado para ver o feed de atividades.</p>
-        </div>
-        <BottomNav />
-      </div>
-    );
-  }
+  }, []);
 
   return (
-    <div className="app-container">
+    <div className="app-container pb-20">
       <Header title="Feed de Atividades" />
 
-      <div className="mt-4 mb-24">
+      <div className="mt-4">
         {loading ? (
           <div className="flex items-center justify-center h-40">
             <Loader className="w-8 h-8 animate-spin" />

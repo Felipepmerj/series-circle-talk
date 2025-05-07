@@ -1,43 +1,63 @@
 
 import React from "react";
-import { Link, useLocation } from "react-router-dom";
-import { Home, Search, ListChecks, TrendingUp, Users, ActivityIcon } from "lucide-react";
+import { NavLink } from "react-router-dom";
+import { Activity, Search, UserRound, Users, Award } from "lucide-react";
 
-const BottomNav: React.FC = () => {
-  const location = useLocation();
-  const currentPath = location.pathname;
-  
-  const isActive = (path: string): boolean => {
-    if (path === "/" && currentPath === "/") return true;
-    if (path !== "/" && currentPath.startsWith(path)) return true;
-    return false;
-  };
-  
+const BottomNav = () => {
   return (
-    <div className="bottom-nav">
-      <div className="bottom-nav-content">
-        <Link to="/" className={`nav-tab ${isActive("/") ? "active" : "inactive"} p-3`}>
-          <Home size={22} />
-          <span>Início</span>
-        </Link>
-        <Link to="/feed" className={`nav-tab ${isActive("/feed") ? "active" : "inactive"} p-3`}>
-          <ActivityIcon size={22} />
-          <span>Feed</span>
-        </Link>
-        <Link to="/search" className={`nav-tab ${isActive("/search") ? "active" : "inactive"} p-3`}>
-          <Search size={22} />
-          <span>Busca</span>
-        </Link>
-        <Link to="/watched" className={`nav-tab ${isActive("/watched") ? "active" : "inactive"} p-3`}>
-          <ListChecks size={22} />
-          <span>Minhas Séries</span>
-        </Link>
-        <Link to="/invite" className={`nav-tab ${isActive("/invite") ? "active" : "inactive"} p-3`}>
-          <Users size={22} />
-          <span>Amigos</span>
-        </Link>
+    <nav className="fixed bottom-0 left-0 right-0 bg-white shadow-lg border-t z-20">
+      <div className="flex items-center justify-around">
+        <NavLink
+          to="/feed"
+          className={({ isActive }) =>
+            `flex flex-col items-center py-3 px-4 ${isActive ? "text-primary" : "text-muted-foreground"}`
+          }
+        >
+          <Activity size={20} />
+          <span className="text-xs mt-1">Feed</span>
+        </NavLink>
+
+        <NavLink
+          to="/search"
+          className={({ isActive }) =>
+            `flex flex-col items-center py-3 px-4 ${isActive ? "text-primary" : "text-muted-foreground"}`
+          }
+        >
+          <Search size={20} />
+          <span className="text-xs mt-1">Busca</span>
+        </NavLink>
+
+        <NavLink
+          to="/user-profile"
+          className={({ isActive }) =>
+            `flex flex-col items-center py-3 px-4 ${isActive ? "text-primary" : "text-muted-foreground"}`
+          }
+        >
+          <UserRound size={20} />
+          <span className="text-xs mt-1">Perfil</span>
+        </NavLink>
+
+        <NavLink
+          to="/invite"
+          className={({ isActive }) =>
+            `flex flex-col items-center py-3 px-4 ${isActive ? "text-primary" : "text-muted-foreground"}`
+          }
+        >
+          <Users size={20} />
+          <span className="text-xs mt-1">Amigos</span>
+        </NavLink>
+
+        <NavLink
+          to="/ranking"
+          className={({ isActive }) =>
+            `flex flex-col items-center py-3 px-4 ${isActive ? "text-primary" : "text-muted-foreground"}`
+          }
+        >
+          <Award size={20} />
+          <span className="text-xs mt-1">Ranking</span>
+        </NavLink>
       </div>
-    </div>
+    </nav>
   );
 };
 

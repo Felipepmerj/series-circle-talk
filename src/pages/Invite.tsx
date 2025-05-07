@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { MessageSquare, Share2, Copy, Check, Mail, Users } from "lucide-react";
 import Header from "../components/Header";
 import { Button } from "@/components/ui/button";
@@ -77,7 +78,7 @@ const Invite: React.FC = () => {
   };
   
   return (
-    <div className="app-container">
+    <div className="app-container pb-20">
       <Header title="Amigos" showBackButton />
       
       {/* Invite section */}
@@ -161,7 +162,7 @@ const Invite: React.FC = () => {
       </div>
       
       {/* Friends list */}
-      <div className="mt-6 pb-24">
+      <div className="mt-6 mb-20">
         <h2 className="text-lg font-medium mb-3">
           {loading ? "Carregando..." : `Usuários (${friends.length})`}
         </h2>
@@ -171,8 +172,9 @@ const Invite: React.FC = () => {
             <div className="p-4 text-center">Carregando usuários...</div>
           ) : friends.length > 0 ? (
             friends.map((friend) => (
-              <div 
+              <Link 
                 key={friend.id}
+                to={`/profile/${friend.id}`}
                 className="flex items-center p-4 border-b last:border-b-0 hover:bg-muted/10"
               >
                 <img 
@@ -181,7 +183,7 @@ const Invite: React.FC = () => {
                   className="w-10 h-10 rounded-full object-cover"
                 />
                 <p className="ml-3 font-medium">{friend.name || "Usuário"}</p>
-              </div>
+              </Link>
             ))
           ) : (
             <div className="p-8 text-center">

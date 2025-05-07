@@ -45,8 +45,7 @@ const FeedItem: React.FC<FeedItemProps> = ({
         // Se for um review, obter detalhes adicionais
         if (type === 'review' && reviewId) {
           // Aqui você pode buscar detalhes da avaliação de alguma forma
-          // Por exemplo, através de uma chamada ao Supabase
-          // Este é um exemplo simplificado:
+          // Por enquanto, usamos os dados que já temos
           const dummyRating = Math.floor(Math.random() * 5) + 1;
           setRating(dummyRating);
           setComment("Gostei muito desta série!");

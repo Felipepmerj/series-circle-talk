@@ -34,7 +34,7 @@ const Search: React.FC = () => {
   };
   
   return (
-    <div className="app-container">
+    <div className="app-container pb-20">
       <Header title="Buscar Séries" showBackButton />
       
       {/* Search form */}

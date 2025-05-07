@@ -14,6 +14,7 @@ import { Camera, Loader2 } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
 import { supabaseService } from "../services/supabaseService";
 import Header from "../components/Header";
+import BottomNav from "../components/BottomNav";
 
 const profileSchema = z.object({
   name: z.string().min(2, { message: "Nome deve ter pelo menos 2 caracteres" }),
@@ -130,12 +131,13 @@ const UserProfile = () => {
         <div className="flex justify-center items-center flex-1">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
+        <BottomNav />
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col min-h-screen">
+    <div className="flex flex-col min-h-screen pb-20">
       <Header title="Meu Perfil" showBackButton />
       <main className="flex-1 p-4">
         <Card className="max-w-md mx-auto">
@@ -215,6 +217,7 @@ const UserProfile = () => {
           </CardFooter>
         </Card>
       </main>
+      <BottomNav />
     </div>
   );
 };
