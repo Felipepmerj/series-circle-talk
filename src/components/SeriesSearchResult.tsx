@@ -45,8 +45,12 @@ const SeriesSearchResult: React.FC<SeriesSearchResultProps> = ({
     }
     
     try {
-      // Redirecionar para a página de detalhes para adicionar/editar a watchlist
-      window.location.href = `/series/${series.id}?action=watchlist`;
+      if (onAddToWatchlist) {
+        onAddToWatchlist();
+      } else {
+        // Fallback behavior
+        window.location.href = `/series/${series.id}?action=watchlist`;
+      }
     } catch (error) {
       console.error("Error adding to watchlist:", error);
       toast({
@@ -68,8 +72,12 @@ const SeriesSearchResult: React.FC<SeriesSearchResultProps> = ({
     }
     
     try {
-      // Redirecionar para a página de detalhes para adicionar/editar a avaliação
-      window.location.href = `/series/${series.id}?action=watched`;
+      if (onAddToWatched) {
+        onAddToWatched();
+      } else {
+        // Fallback behavior
+        window.location.href = `/series/${series.id}?action=watched`;
+      }
     } catch (error) {
       console.error("Error adding to watched:", error);
       toast({

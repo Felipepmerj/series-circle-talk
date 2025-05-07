@@ -64,10 +64,10 @@ const Search: React.FC = () => {
               <SeriesSearchResult
                 key={series.id}
                 series={series}
-                onClickWatched={() => {
+                onAddToWatched={() => {
                   window.location.href = `/series/${series.id}?action=watched`;
                 }}
-                onClickWatchlist={() => {
+                onAddToWatchlist={() => {
                   window.location.href = `/series/${series.id}?action=watchlist`;
                 }}
               />
