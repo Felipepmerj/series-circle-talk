@@ -28,7 +28,7 @@ const BottomNav = () => {
         </NavLink>
 
         <NavLink
-          to="/user-profile"
+          to="/profile"
           className={({ isActive }) =>
             `flex flex-col items-center py-3 px-4 ${isActive ? "text-primary" : "text-muted-foreground"}`
           }

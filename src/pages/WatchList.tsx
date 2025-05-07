@@ -1,13 +1,13 @@
 
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Home, Search, ListChecks, ListPlus, Users } from "lucide-react";
 import Header from "../components/Header";
 import SeriesCard from "../components/SeriesCard";
 import { api } from "../services/api";
 import { Series } from "../types/Series";
 import { useAuth } from "../hooks/useAuth";
 import { supabaseService } from "../services/supabaseService";
+import BottomNav from "../components/BottomNav";
 
 const WatchList: React.FC = () => {
   const { user } = useAuth();
@@ -46,7 +46,7 @@ const WatchList: React.FC = () => {
   }, [user]);
   
   return (
-    <div className="app-container">
+    <div className="app-container pb-20">
       <Header title="Quero Assistir" showSearchButton />
       
       {loading ? (
@@ -74,31 +74,7 @@ const WatchList: React.FC = () => {
         </div>
       )}
       
-      {/* Bottom Navigation */}
-      <div className="bottom-nav">
-        <div className="bottom-nav-content">
-          <Link to="/" className="nav-tab inactive p-3">
-            <Home size={22} />
-            <span>Início</span>
-          </Link>
-          <Link to="/search" className="nav-tab inactive p-3">
-            <Search size={22} />
-            <span>Busca</span>
-          </Link>
-          <Link to="/watched" className="nav-tab inactive p-3">
-            <ListChecks size={22} />
-            <span>Assistidos</span>
-          </Link>
-          <Link to="/watchlist" className="nav-tab active p-3">
-            <ListPlus size={22} />
-            <span>Quero ver</span>
-          </Link>
-          <Link to="/invite" className="nav-tab inactive p-3">
-            <Users size={22} />
-            <span>Amigos</span>
-          </Link>
-        </div>
-      </div>
+      <BottomNav />
     </div>
   );
 };

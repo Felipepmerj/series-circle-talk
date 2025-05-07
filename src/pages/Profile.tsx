@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { Home, Search, ListChecks, ListPlus, Users, Grid, List, Settings } from "lucide-react";
+import { Grid, List } from "lucide-react";
 import Header from "../components/Header";
 import SeriesCard from "../components/SeriesCard";
 import { api } from "../services/api";
@@ -9,7 +9,8 @@ import { Series } from "../types/Series";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "../hooks/useAuth";
-import { supabaseService, WatchedSeries, WatchlistItem } from "../services/supabaseService";
+import { supabaseService } from "../services/supabaseService";
+import BottomNav from "../components/BottomNav";
 
 const Profile: React.FC = () => {
   const navigate = useNavigate();
@@ -95,27 +96,28 @@ const Profile: React.FC = () => {
         className="ml-auto" 
         onClick={() => navigate("/user-profile")}
       >
-        <Settings size={16} className="mr-1" /> Editar Perfil
+        Editar Perfil
       </Button>
     );
   };
   
   if (loading) {
     return (
-      <div className="app-container">
+      <div className="app-container pb-20">
         <Header title="Carregando..." showBackButton />
         <div className="animate-pulse space-y-4 mt-4">
           <div className="h-24 bg-muted rounded-lg"></div>
           <div className="h-4 bg-muted rounded w-3/4"></div>
           <div className="h-4 bg-muted rounded w-1/2"></div>
         </div>
+        <BottomNav />
       </div>
     );
   }
   
   if (!profile) {
     return (
-      <div className="app-container">
+      <div className="app-container pb-20">
         <Header title="Perfil não encontrado" showBackButton />
         <div className="text-center py-8">
           <p>Usuário não encontrado.</p>
@@ -123,13 +125,14 @@ const Profile: React.FC = () => {
             Voltar para a página inicial
           </Link>
         </div>
+        <BottomNav />
       </div>
     );
   }
   
   return (
-    <div className="app-container">
-      <Header title={isOwnProfile ? "Meu Perfil" : "Perfil"} showBackButton />
+    <div className="app-container pb-20">
+      <Header title={isOwnProfile ? "Meu Perfil" : "Perfil"} showBackButton={!isOwnProfile} />
       
       {/* Profile header */}
       <div className="flex items-center p-4">
@@ -264,31 +267,7 @@ const Profile: React.FC = () => {
         </TabsContent>
       </Tabs>
       
-      {/* Bottom Navigation */}
-      <div className="bottom-nav">
-        <div className="bottom-nav-content">
-          <Link to="/" className="nav-tab inactive p-3">
-            <Home size={22} />
-            <span>Início</span>
-          </Link>
-          <Link to="/search" className="nav-tab inactive p-3">
-            <Search size={22} />
-            <span>Busca</span>
-          </Link>
-          <Link to="/watched" className="nav-tab active p-3">
-            <ListChecks size={22} />
-            <span>Assistidos</span>
-          </Link>
-          <Link to="/watchlist" className="nav-tab inactive p-3">
-            <ListPlus size={22} />
-            <span>Quero ver</span>
-          </Link>
-          <Link to="/invite" className="nav-tab inactive p-3">
-            <Users size={22} />
-            <span>Amigos</span>
-          </Link>
-        </div>
-      </div>
+      <BottomNav />
     </div>
   );
 };
