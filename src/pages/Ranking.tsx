@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from "react";
-import { Star, Eye, UserPlus, List, TrendingUp } from "lucide-react";
+import { Star, Eye, UserPlus, List, TrendingUp, Users } from "lucide-react";
 import Header from "../components/Header";
 import SeriesCard from "../components/SeriesCard";
 import { api } from "../services/api";
