@@ -11,9 +11,24 @@ import { supabaseService } from "../services/supabaseService";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Link } from "react-router-dom";
 
+interface UserSeriesData {
+  userId: string;
+  userName: string;
+  profilePic: string | null;
+  seriesCount: number;
+  averageRating: number;
+  seriesList: {
+    id: number;
+    title: string;
+    poster_path: string | null;
+    rating: number | null;
+  }[];
+}
+
 const Ranking: React.FC = () => {
   const [series, setSeries] = useState<Series[]>([]);
   const [userRankings, setUserRankings] = useState<any[]>([]);
+  const [userSeriesData, setUserSeriesData] = useState<UserSeriesData[]>([]);
   const [loading, setLoading] = useState(false);
   const [activeFilter, setActiveFilter] = useState<string>("most-watched");
 
@@ -93,10 +108,72 @@ const Ranking: React.FC = () => {
     }
   };
 
+  const loadAllUserSeries = async () => {
+    setLoading(true);
+    try {
+      // Buscar todos os usuários
+      const profiles = await supabaseService.getAllProfiles();
+      
+      // Buscar dados de séries assistidas para cada usuário
+      const usersWithSeriesData: UserSeriesData[] = await Promise.all(
+        profiles.map(async (profile) => {
+          const watchedShows = await supabaseService.getWatchedSeries(profile.id);
+          
+          // Para cada série assistida, buscar os detalhes da API TMDB
+          const seriesWithDetails = await Promise.all(
+            watchedShows.map(async (show) => {
+              try {
+                // Buscar detalhes da série da API TMDB
+                const seriesDetails = await api.getSeriesById(show.series_id);
+                return {
+                  id: show.series_id,
+                  title: seriesDetails?.name || `Série ${show.series_id}`,
+                  poster_path: seriesDetails?.poster_path,
+                  rating: show.rating
+                };
+              } catch (error) {
+                console.error(`Error fetching details for series ${show.series_id}:`, error);
+                return {
+                  id: show.series_id,
+                  title: `Série ${show.series_id}`,
+                  poster_path: null,
+                  rating: show.rating
+                };
+              }
+            })
+          );
+          
+          // Calcular média de avaliação
+          const validRatings = watchedShows.filter(show => show.rating !== null);
+          const averageRating = validRatings.length > 0 
+            ? validRatings.reduce((sum, show) => sum + (show.rating || 0), 0) / validRatings.length 
+            : 0;
+          
+          return {
+            userId: profile.id,
+            userName: profile.name || "Usuário",
+            profilePic: profile.profile_pic,
+            seriesCount: watchedShows.length,
+            averageRating: parseFloat(averageRating.toFixed(1)),
+            seriesList: seriesWithDetails
+          };
+        })
+      );
+      
+      // Ordenar usuários por número de séries assistidas
+      setUserSeriesData(usersWithSeriesData.sort((a, b) => b.seriesCount - a.seriesCount));
+    } catch (error) {
+      console.error("Error loading all user series:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Carregar dados quando o componente for montado
   useEffect(() => {
     loadSeries(activeFilter);
     loadUserRankings();
+    loadAllUserSeries();
   }, []);
 
   return (
@@ -106,6 +183,8 @@ const Ranking: React.FC = () => {
       <Tabs defaultValue="most-watched" className="w-full" onValueChange={(value) => {
         if (value === "users") {
           loadUserRankings();
+        } else if (value === "all-series") {
+          loadAllUserSeries();
         } else {
           loadSeries(value);
         }
@@ -131,9 +210,9 @@ const Ranking: React.FC = () => {
             <Users size={18} className="mb-1" />
             <span>Usuários</span>
           </TabsTrigger>
-          <TabsTrigger value="all" className="flex flex-col items-center text-xs py-2">
+          <TabsTrigger value="all-series" className="flex flex-col items-center text-xs py-2">
             <TrendingUp size={18} className="mb-1" />
-            <span>Todos</span>
+            <span>Todas</span>
           </TabsTrigger>
         </TabsList>
         
@@ -152,8 +231,8 @@ const Ranking: React.FC = () => {
         <TabsContent value="users" className="mt-0">
           {renderUserRankings()}
         </TabsContent>
-        <TabsContent value="all" className="mt-0">
-          {renderSeriesList()}
+        <TabsContent value="all-series" className="mt-0">
+          {renderAllUserSeries()}
         </TabsContent>
       </Tabs>
       
@@ -252,6 +331,85 @@ const Ranking: React.FC = () => {
             ))}
           </TableBody>
         </Table>
+      </div>
+    );
+  }
+  
+  function renderAllUserSeries() {
+    if (loading) {
+      return (
+        <div className="animate-pulse space-y-4 mt-4">
+          {[1, 2, 3].map(i => (
+            <div key={i} className="bg-muted h-16 rounded-lg"></div>
+          ))}
+        </div>
+      );
+    }
+    
+    if (userSeriesData.length === 0) {
+      return (
+        <div className="text-center py-8">
+          <p className="text-muted-foreground">Nenhum usuário ou série encontrada.</p>
+        </div>
+      );
+    }
+    
+    return (
+      <div className="space-y-8 mt-4">
+        {userSeriesData.map(userData => (
+          <div key={userData.userId} className="bg-white rounded-lg shadow overflow-hidden p-4">
+            <Link to={`/profile/${userData.userId}`} className="flex items-center mb-4">
+              <div className="w-10 h-10 rounded-full overflow-hidden bg-muted mr-3">
+                {userData.profilePic ? (
+                  <img src={userData.profilePic} alt={userData.userName} className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center bg-primary/20 text-primary font-bold">
+                    {userData.userName.charAt(0)}
+                  </div>
+                )}
+              </div>
+              <div>
+                <h3 className="font-bold text-lg">{userData.userName}</h3>
+                <div className="flex items-center text-sm text-muted-foreground">
+                  <span className="mr-3">{userData.seriesCount} séries</span>
+                  <div className="flex items-center">
+                    <Star size={14} className="text-yellow-500 fill-yellow-500 mr-1" />
+                    <span>{userData.averageRating}</span>
+                  </div>
+                </div>
+              </div>
+            </Link>
+            
+            {userData.seriesList.length > 0 ? (
+              <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6">
+                {userData.seriesList.map(series => (
+                  <Link to={`/series/${series.id}`} key={series.id} className="block">
+                    <div className="relative aspect-[2/3] bg-muted rounded-lg overflow-hidden">
+                      {series.poster_path ? (
+                        <img 
+                          src={`https://image.tmdb.org/t/p/w200${series.poster_path}`} 
+                          alt={series.title} 
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-gray-200 text-gray-500 text-center p-2">
+                          <span>{series.title}</span>
+                        </div>
+                      )}
+                      {series.rating && (
+                        <div className="absolute top-1 right-1 bg-black/70 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs">
+                          {series.rating}
+                        </div>
+                      )}
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <p className="text-center text-muted-foreground py-4">Este usuário ainda não assistiu nenhuma série.</p>
+            )}
+          </div>
+        ))}
       </div>
     );
   }
