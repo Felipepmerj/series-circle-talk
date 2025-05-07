@@ -1,0 +1,70 @@
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 240 10% 3.9%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 3.9%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 3.9%;
+
+    --primary: 262 45% 50%;
+    --primary-foreground: 0 0% 98%;
+
+    --secondary: 240 5.9% 10%;
+    --secondary-foreground: 0 0% 98%;
+
+    --muted: 240 4.8% 95.9%;
+    --muted-foreground: 240 3.8% 46.1%;
+
+    --accent: 262 45% 95%;
+    --accent-foreground: 262 45% 50%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 240 5.9% 90%;
+    --input: 240 5.9% 90%;
+    --ring: 262 45% 50%;
+
+    --radius: 0.75rem;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans;
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+@layer components {
+  .app-container {
+    @apply max-w-lg mx-auto px-4 pb-20 pt-2;
+  }
+  .nav-tab {
+    @apply flex flex-col items-center justify-center text-xs font-medium;
+  }
+  .nav-tab.active {
+    @apply text-primary;
+  }
+  .nav-tab.inactive {
+    @apply text-muted-foreground;
+  }
+  .bottom-nav {
+    @apply fixed bottom-0 left-0 right-0 border-t bg-background/90 backdrop-blur-sm;
+  }
+  .bottom-nav-content {
+    @apply grid grid-cols-5 max-w-lg mx-auto;
+  }
+}
