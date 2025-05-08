@@ -10,6 +10,8 @@ import BottomNav from "../components/BottomNav";
 import { supabaseService } from "../services/supabaseService";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Link } from "react-router-dom";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface UserSeriesData {
   userId: string;
@@ -25,10 +27,26 @@ interface UserSeriesData {
   }[];
 }
 
+interface AggregatedSeriesData {
+  id: number;
+  title: string;
+  poster_path: string | null;
+  watchCount: number;
+  averageRating: number;
+  ratings: number[];
+  usersWhoWatched: {
+    userId: string;
+    userName: string;
+    profilePic: string | null;
+    rating: number | null;
+  }[];
+}
+
 const Ranking: React.FC = () => {
   const [series, setSeries] = useState<Series[]>([]);
   const [userRankings, setUserRankings] = useState<any[]>([]);
   const [userSeriesData, setUserSeriesData] = useState<UserSeriesData[]>([]);
+  const [aggregatedSeries, setAggregatedSeries] = useState<AggregatedSeriesData[]>([]);
   const [loading, setLoading] = useState(false);
   const [activeFilter, setActiveFilter] = useState<string>("most-watched");
 
@@ -46,8 +64,8 @@ const Ranking: React.FC = () => {
       
       switch(filter) {
         case "most-watched":
-          // Ordenar por popularidade (simulação)
-          filteredData.sort((a, b) => b.popularity - a.popularity);
+          // Ordenar por vote_count (proxy para popularidade)
+          filteredData.sort((a, b) => b.vote_average - a.vote_average);
           break;
         case "best-rated":
           // Ordenar por nota
@@ -162,6 +180,54 @@ const Ranking: React.FC = () => {
       
       // Ordenar usuários por número de séries assistidas
       setUserSeriesData(usersWithSeriesData.sort((a, b) => b.seriesCount - a.seriesCount));
+
+      // Agregar todas as séries de todos os usuários para mostrar estatísticas globais
+      const allSeriesMap = new Map<number, AggregatedSeriesData>();
+
+      usersWithSeriesData.forEach(userData => {
+        userData.seriesList.forEach(series => {
+          if (!allSeriesMap.has(series.id)) {
+            allSeriesMap.set(series.id, {
+              id: series.id,
+              title: series.title,
+              poster_path: series.poster_path,
+              watchCount: 0,
+              averageRating: 0,
+              ratings: [],
+              usersWhoWatched: []
+            });
+          }
+
+          const seriesData = allSeriesMap.get(series.id)!;
+          seriesData.watchCount += 1;
+          
+          if (series.rating !== null) {
+            seriesData.ratings.push(series.rating);
+          }
+
+          seriesData.usersWhoWatched.push({
+            userId: userData.userId,
+            userName: userData.userName,
+            profilePic: userData.profilePic,
+            rating: series.rating
+          });
+        });
+      });
+
+      // Calcular média de avaliação para cada série
+      const aggregatedSeriesList: AggregatedSeriesData[] = Array.from(allSeriesMap.values()).map(series => {
+        const validRatings = series.ratings.filter(r => r !== null);
+        const avgRating = validRatings.length > 0 
+          ? validRatings.reduce((sum, rating) => sum + rating, 0) / validRatings.length
+          : 0;
+
+        return {
+          ...series,
+          averageRating: parseFloat(avgRating.toFixed(1))
+        };
+      });
+
+      setAggregatedSeries(aggregatedSeriesList);
     } catch (error) {
       console.error("Error loading all user series:", error);
     } finally {
@@ -232,7 +298,7 @@ const Ranking: React.FC = () => {
           {renderUserRankings()}
         </TabsContent>
         <TabsContent value="all-series" className="mt-0">
-          {renderAllUserSeries()}
+          {renderAllSeriesStats()}
         </TabsContent>
       </Tabs>
       
@@ -308,15 +374,15 @@ const Ranking: React.FC = () => {
                 <TableCell className="font-bold">{index + 1}</TableCell>
                 <TableCell>
                   <Link to={`/profile/${user.id}`} className="flex items-center">
-                    <div className="w-8 h-8 rounded-full overflow-hidden bg-muted mr-2">
+                    <Avatar className="w-8 h-8 mr-2">
                       {user.profilePic ? (
-                        <img src={user.profilePic} alt={user.name} className="w-full h-full object-cover" />
+                        <AvatarImage src={user.profilePic} alt={user.name} />
                       ) : (
-                        <div className="w-full h-full flex items-center justify-center bg-primary/20 text-primary font-bold">
+                        <AvatarFallback className="bg-primary/20 text-primary">
                           {user.name.charAt(0)}
-                        </div>
+                        </AvatarFallback>
                       )}
-                    </div>
+                    </Avatar>
                     <span>{user.name}</span>
                   </Link>
                 </TableCell>
@@ -334,8 +400,8 @@ const Ranking: React.FC = () => {
       </div>
     );
   }
-  
-  function renderAllUserSeries() {
+
+  function renderAllSeriesStats() {
     if (loading) {
       return (
         <div className="animate-pulse space-y-4 mt-4">
@@ -346,70 +412,151 @@ const Ranking: React.FC = () => {
       );
     }
     
-    if (userSeriesData.length === 0) {
-      return (
-        <div className="text-center py-8">
-          <p className="text-muted-foreground">Nenhum usuário ou série encontrada.</p>
-        </div>
-      );
-    }
+    const mostWatchedSeries = [...aggregatedSeries].sort((a, b) => b.watchCount - a.watchCount);
+    const bestRatedSeries = [...aggregatedSeries].sort((a, b) => b.averageRating - a.averageRating);
     
     return (
-      <div className="space-y-8 mt-4">
-        {userSeriesData.map(userData => (
-          <div key={userData.userId} className="bg-white rounded-lg shadow overflow-hidden p-4">
-            <Link to={`/profile/${userData.userId}`} className="flex items-center mb-4">
-              <div className="w-10 h-10 rounded-full overflow-hidden bg-muted mr-3">
-                {userData.profilePic ? (
-                  <img src={userData.profilePic} alt={userData.userName} className="w-full h-full object-cover" />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center bg-primary/20 text-primary font-bold">
-                    {userData.userName.charAt(0)}
+      <div className="space-y-8">
+        {/* Séries mais assistidas por todos os usuários */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <Eye className="mr-2" size={18} />
+              Séries mais assistidas
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
+              {mostWatchedSeries.slice(0, 8).map(series => (
+                <Link to={`/series/${series.id}`} key={series.id} className="block">
+                  <div className="relative aspect-[2/3] bg-muted rounded-lg overflow-hidden">
+                    {series.poster_path ? (
+                      <img 
+                        src={`https://image.tmdb.org/t/p/w200${series.poster_path}`} 
+                        alt={series.title} 
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-gray-200 text-gray-500 text-center p-2">
+                        <span>{series.title}</span>
+                      </div>
+                    )}
+                    <div className="absolute top-1 right-1 bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold">
+                      {series.watchCount}
+                    </div>
+                    {series.averageRating > 0 && (
+                      <div className="absolute bottom-1 right-1 bg-black/70 text-white rounded-full px-2 py-1 flex items-center justify-center text-xs">
+                        <Star size={12} className="text-yellow-500 fill-yellow-500 mr-1" />
+                        {series.averageRating}
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
-              <div>
-                <h3 className="font-bold text-lg">{userData.userName}</h3>
-                <div className="flex items-center text-sm text-muted-foreground">
-                  <span className="mr-3">{userData.seriesCount} séries</span>
-                  <div className="flex items-center">
-                    <Star size={14} className="text-yellow-500 fill-yellow-500 mr-1" />
-                    <span>{userData.averageRating}</span>
+                  <p className="text-sm font-medium mt-1 truncate">{series.title}</p>
+                </Link>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+        
+        {/* Séries melhor avaliadas por todos os usuários */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <Star className="mr-2" size={18} />
+              Séries melhor avaliadas
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
+              {bestRatedSeries
+                .filter(series => series.averageRating > 0) // Filtrar apenas séries com avaliação
+                .slice(0, 8)
+                .map(series => (
+                <Link to={`/series/${series.id}`} key={series.id} className="block">
+                  <div className="relative aspect-[2/3] bg-muted rounded-lg overflow-hidden">
+                    {series.poster_path ? (
+                      <img 
+                        src={`https://image.tmdb.org/t/p/w200${series.poster_path}`} 
+                        alt={series.title} 
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-gray-200 text-gray-500 text-center p-2">
+                        <span>{series.title}</span>
+                      </div>
+                    )}
+                    <div className="absolute top-1 right-1 bg-yellow-500 text-white rounded-full px-2 py-1 flex items-center justify-center text-xs font-bold">
+                      <Star size={12} className="fill-white mr-1" />
+                      {series.averageRating}
+                    </div>
+                    <div className="absolute bottom-1 right-1 bg-black/70 text-white rounded-full px-2 py-1 flex items-center justify-center text-xs">
+                      {series.watchCount} usuários
+                    </div>
+                  </div>
+                  <p className="text-sm font-medium mt-1 truncate">{series.title}</p>
+                </Link>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Lista de usuários e suas séries */}
+        <div className="space-y-8 mt-4">
+          {userSeriesData.map(userData => (
+            <div key={userData.userId} className="bg-white rounded-lg shadow overflow-hidden p-4">
+              <Link to={`/profile/${userData.userId}`} className="flex items-center mb-4">
+                <Avatar className="w-10 h-10 mr-3">
+                  {userData.profilePic ? (
+                    <AvatarImage src={userData.profilePic} alt={userData.userName} className="w-full h-full object-cover" />
+                  ) : (
+                    <AvatarFallback className="bg-primary/20 text-primary font-bold">
+                      {userData.userName.charAt(0)}
+                    </AvatarFallback>
+                  )}
+                </Avatar>
+                <div>
+                  <h3 className="font-bold text-lg">{userData.userName}</h3>
+                  <div className="flex items-center text-sm text-muted-foreground">
+                    <span className="mr-3">{userData.seriesCount} séries</span>
+                    <div className="flex items-center">
+                      <Star size={14} className="text-yellow-500 fill-yellow-500 mr-1" />
+                      <span>{userData.averageRating}</span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </Link>
-            
-            {userData.seriesList.length > 0 ? (
-              <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6">
-                {userData.seriesList.map(series => (
-                  <Link to={`/series/${series.id}`} key={series.id} className="block">
-                    <div className="relative aspect-[2/3] bg-muted rounded-lg overflow-hidden">
-                      {series.poster_path ? (
-                        <img 
-                          src={`https://image.tmdb.org/t/p/w200${series.poster_path}`} 
-                          alt={series.title} 
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center bg-gray-200 text-gray-500 text-center p-2">
-                          <span>{series.title}</span>
-                        </div>
-                      )}
-                      {series.rating !== null && (
-                        <div className="absolute top-1 right-1 bg-black/70 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs">
-                          {series.rating}
-                        </div>
-                      )}
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            ) : (
-              <p className="text-center text-muted-foreground py-4">Este usuário ainda não assistiu nenhuma série.</p>
-            )}
-          </div>
-        ))}
+              </Link>
+              
+              {userData.seriesList.length > 0 ? (
+                <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6">
+                  {userData.seriesList.map(series => (
+                    <Link to={`/series/${series.id}`} key={series.id} className="block">
+                      <div className="relative aspect-[2/3] bg-muted rounded-lg overflow-hidden">
+                        {series.poster_path ? (
+                          <img 
+                            src={`https://image.tmdb.org/t/p/w200${series.poster_path}`} 
+                            alt={series.title} 
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center bg-gray-200 text-gray-500 text-center p-2">
+                            <span>{series.title}</span>
+                          </div>
+                        )}
+                        {series.rating !== null && (
+                          <div className="absolute top-1 right-1 bg-black/70 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs">
+                            {series.rating}
+                          </div>
+                        )}
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-center text-muted-foreground py-4">Este usuário ainda não assistiu nenhuma série.</p>
+              )}
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
