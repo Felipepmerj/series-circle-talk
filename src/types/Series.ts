@@ -40,8 +40,7 @@ export interface WatchlistItem {
   id: string;
   userId: string;
   seriesId: number;
-  note?: string;
-  notes?: string; // Alternative property name
+  notes?: string;
   addedAt: string;
 }
 

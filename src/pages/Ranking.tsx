@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from "react";
-import { Star, Eye, UserPlus, List, TrendingUp } from "lucide-react";
+import { Star, Eye, List, Grid as GridIcon } from "lucide-react";
 import Header from "../components/Header";
 import SeriesCard from "../components/SeriesCard";
 import { api } from "../services/api";
@@ -11,7 +11,7 @@ import { supabaseService } from "../services/supabaseService";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Link } from "react-router-dom";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 
 interface UserSeriesData {
   userId: string;
@@ -50,6 +50,7 @@ const Ranking: React.FC = () => {
   const [watchlistSeries, setWatchlistSeries] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [activeFilter, setActiveFilter] = useState<string>("most-watched");
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
   // Function to load all user series data and aggregate them
   const loadAllUserSeries = async () => {
@@ -153,53 +154,55 @@ const Ranking: React.FC = () => {
       });
 
       setAggregatedSeries(aggregatedSeriesList);
-
-      // Set most watched series for the most-watched tab
-      if (activeFilter === "most-watched") {
-        const mostWatchedSeries = [...aggregatedSeriesList]
-          .sort((a, b) => b.watchCount - a.watchCount)
-          .slice(0, 20);
-        
-        // Convert to Series type for the SeriesCard component
-        const seriesList: Series[] = mostWatchedSeries.map(item => ({
-          id: item.id,
-          name: item.title,
-          poster_path: item.poster_path,
-          vote_average: item.averageRating * 2, // Convert 5-star scale to 10-star scale
-          overview: `Assistido por ${item.watchCount} usuários`,
-          first_air_date: "",
-          backdrop_path: null,
-          genres: [], // Add empty genres array to satisfy the type
-        }));
-        
-        setSeries(seriesList);
-      }
       
-      // Set best rated series for the best-rated tab
-      if (activeFilter === "best-rated") {
-        const bestRatedSeries = [...aggregatedSeriesList]
-          .filter(series => series.averageRating > 0)
-          .sort((a, b) => b.averageRating - a.averageRating)
-          .slice(0, 20);
-          
-        const seriesList: Series[] = bestRatedSeries.map(item => ({
-          id: item.id,
-          name: item.title,
-          poster_path: item.poster_path,
-          vote_average: item.averageRating * 2, // Convert 5-star scale to 10-star scale
-          overview: `Avaliação média: ${item.averageRating}/5`,
-          first_air_date: "",
-          backdrop_path: null,
-          genres: [], // Add empty genres array to satisfy the type
-        }));
-        
-        setSeries(seriesList);
-      }
+      // Update series lists based on the active filter
+      updateSeriesList(aggregatedSeriesList);
 
     } catch (error) {
       console.error("Error loading all user series:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Function to update the series list based on active filter
+  const updateSeriesList = (aggregatedSeriesList: AggregatedSeriesData[]) => {
+    if (activeFilter === "most-watched") {
+      const mostWatchedSeries = [...aggregatedSeriesList]
+        .sort((a, b) => b.watchCount - a.watchCount)
+        .slice(0, 20);
+      
+      const seriesList: Series[] = mostWatchedSeries.map(item => ({
+        id: item.id,
+        name: item.title,
+        poster_path: item.poster_path,
+        vote_average: item.averageRating * 2, // Convert 5-star scale to 10-star scale
+        overview: `Assistido por ${item.watchCount} usuários`,
+        first_air_date: "",
+        backdrop_path: null,
+        genres: [], // Add empty genres array to satisfy the type
+      }));
+      
+      setSeries(seriesList);
+    } 
+    else if (activeFilter === "best-rated") {
+      const bestRatedSeries = [...aggregatedSeriesList]
+        .filter(series => series.averageRating > 0)
+        .sort((a, b) => b.averageRating - a.averageRating)
+        .slice(0, 20);
+        
+      const seriesList: Series[] = bestRatedSeries.map(item => ({
+        id: item.id,
+        name: item.title,
+        poster_path: item.poster_path,
+        vote_average: item.averageRating * 2,
+        overview: `Avaliação média: ${item.averageRating}/5`,
+        first_air_date: "",
+        backdrop_path: null,
+        genres: [], // Add empty genres array
+      }));
+      
+      setSeries(seriesList);
     }
   };
 
@@ -235,7 +238,7 @@ const Ranking: React.FC = () => {
                     id: seriesId,
                     title: seriesDetails?.name || `Série ${seriesId}`,
                     poster_path: seriesDetails?.poster_path,
-                    note: item.notes || item.note, // Try both property names
+                    notes: item.notes, // Use notes instead of note
                     popularity: seriesCountMap.get(seriesId) || 1
                   }
                 });
@@ -265,7 +268,7 @@ const Ranking: React.FC = () => {
           userId: item.userId,
           userName: item.userName,
           profilePic: item.profilePic,
-          note: item.series.note
+          notes: item.series.notes
         });
       });
       
@@ -345,50 +348,17 @@ const Ranking: React.FC = () => {
     setActiveFilter(value);
     
     if (value === "most-watched") {
-      // Load most watched series from aggregated data
       if (aggregatedSeries.length === 0) {
         loadAllUserSeries();
       } else {
-        const mostWatchedSeries = [...aggregatedSeries]
-          .sort((a, b) => b.watchCount - a.watchCount)
-          .slice(0, 20);
-          
-        const seriesList: Series[] = mostWatchedSeries.map(item => ({
-          id: item.id,
-          name: item.title,
-          poster_path: item.poster_path,
-          vote_average: item.averageRating * 2,
-          overview: `Assistido por ${item.watchCount} usuários`,
-          first_air_date: "",
-          backdrop_path: null,
-          genres: [], // Add empty genres array
-        }));
-        
-        setSeries(seriesList);
+        updateSeriesList(aggregatedSeries);
       }
     } 
     else if (value === "best-rated") {
-      // Load best rated series from aggregated data
       if (aggregatedSeries.length === 0) {
         loadAllUserSeries();
       } else {
-        const bestRatedSeries = [...aggregatedSeries]
-          .filter(series => series.averageRating > 0)
-          .sort((a, b) => b.averageRating - a.averageRating)
-          .slice(0, 20);
-          
-        const seriesList: Series[] = bestRatedSeries.map(item => ({
-          id: item.id,
-          name: item.title,
-          poster_path: item.poster_path,
-          vote_average: item.averageRating * 2,
-          overview: `Avaliação média: ${item.averageRating}/5`,
-          first_air_date: "",
-          backdrop_path: null,
-          genres: [], // Add empty genres array
-        }));
-        
-        setSeries(seriesList);
+        updateSeriesList(aggregatedSeries);
       }
     }
     else if (value === "users") {
@@ -396,9 +366,6 @@ const Ranking: React.FC = () => {
     }
     else if (value === "lists") {
       loadWatchlistSeries();
-    }
-    else if (value === "all-series") {
-      loadAllUserSeries();
     }
   };
 
@@ -426,10 +393,30 @@ const Ranking: React.FC = () => {
             <span>Listas</span>
           </TabsTrigger>
           <TabsTrigger value="users" className="flex flex-col items-center text-xs py-2">
-            <UserPlus size={18} className="mb-1" />
+            <GridIcon size={18} className="mb-1" />
             <span>Amigos</span>
           </TabsTrigger>
         </TabsList>
+        
+        {/* View mode toggle */}
+        <div className="flex justify-end mb-2">
+          <div className="flex space-x-1">
+            <button 
+              onClick={() => setViewMode('grid')} 
+              className={`p-1 rounded-md ${viewMode === 'grid' ? 'bg-muted' : ''}`}
+              aria-label="Visualização em grade"
+            >
+              <GridIcon size={18} />
+            </button>
+            <button 
+              onClick={() => setViewMode('list')} 
+              className={`p-1 rounded-md ${viewMode === 'list' ? 'bg-muted' : ''}`}
+              aria-label="Visualização em lista"
+            >
+              <List size={18} />
+            </button>
+          </div>
+        </div>
         
         <TabsContent value="most-watched" className="mt-0">
           {renderSeriesList()}
@@ -468,7 +455,7 @@ const Ranking: React.FC = () => {
       );
     }
     
-    return (
+    return viewMode === 'grid' ? (
       <div className="grid grid-cols-2 gap-4 mt-2">
         {series.map(item => (
           <SeriesCard 
@@ -476,6 +463,31 @@ const Ranking: React.FC = () => {
             series={item}
             showRating={activeFilter === "best-rated"}
           />
+        ))}
+      </div>
+    ) : (
+      <div className="space-y-3 mt-2">
+        {series.map(item => (
+          <Link 
+            key={item.id}
+            to={`/series/${item.id}`}
+            className="flex items-center p-3 bg-white rounded-lg shadow"
+          >
+            <img 
+              src={api.getImageUrl(item.poster_path, "w92")} 
+              alt={item.name}
+              className="w-12 h-18 object-cover rounded"
+            />
+            <div className="ml-3 flex-1">
+              <h3 className="font-medium">{item.name}</h3>
+              <div className="flex items-center text-xs space-x-2 mt-1">
+                {activeFilter === "best-rated" && (
+                  <span className="text-yellow-500 font-bold">{(item.vote_average / 2).toFixed(1)}/5</span>
+                )}
+                <span className="text-muted-foreground line-clamp-1">{item.overview}</span>
+              </div>
+            </div>
+          </Link>
         ))}
       </div>
     );
