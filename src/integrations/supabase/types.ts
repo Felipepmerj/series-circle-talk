@@ -14,6 +14,7 @@ export type Database = {
           content: string
           created_at: string | null
           id: string
+          public: boolean | null
           user_id: string | null
           watched_show_id: string | null
         }
@@ -21,6 +22,7 @@ export type Database = {
           content: string
           created_at?: string | null
           id?: string
+          public?: boolean | null
           user_id?: string | null
           watched_show_id?: string | null
         }
@@ -28,6 +30,7 @@ export type Database = {
           content?: string
           created_at?: string | null
           id?: string
+          public?: boolean | null
           user_id?: string | null
           watched_show_id?: string | null
         }
@@ -117,6 +120,7 @@ export type Database = {
         Row: {
           created_at: string | null
           id: string
+          public: boolean | null
           rating: number | null
           review: string | null
           tmdb_id: string
@@ -126,6 +130,7 @@ export type Database = {
         Insert: {
           created_at?: string | null
           id?: string
+          public?: boolean | null
           rating?: number | null
           review?: string | null
           tmdb_id: string
@@ -135,6 +140,7 @@ export type Database = {
         Update: {
           created_at?: string | null
           id?: string
+          public?: boolean | null
           rating?: number | null
           review?: string | null
           tmdb_id?: string
@@ -148,6 +154,7 @@ export type Database = {
           created_at: string | null
           id: string
           note: string | null
+          public: boolean | null
           tmdb_id: string
           user_id: string | null
         }
@@ -155,6 +162,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           note?: string | null
+          public?: boolean | null
           tmdb_id: string
           user_id?: string | null
         }
@@ -162,6 +170,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           note?: string | null
+          public?: boolean | null
           tmdb_id?: string
           user_id?: string | null
         }

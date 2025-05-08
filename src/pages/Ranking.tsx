@@ -47,7 +47,7 @@ const Ranking: React.FC = () => {
       switch(filter) {
         case "most-watched":
           // Ordenar por popularidade (simulação)
-          filteredData.sort((a, b) => b.vote_average - a.vote_average);
+          filteredData.sort((a, b) => b.popularity - a.popularity);
           break;
         case "best-rated":
           // Ordenar por nota
@@ -155,7 +155,7 @@ const Ranking: React.FC = () => {
             profilePic: profile.profile_pic,
             seriesCount: watchedShows.length,
             averageRating: parseFloat(averageRating.toFixed(1)),
-            seriesList: seriesWithDetails
+            seriesList: seriesWithDetails.sort((a, b) => (b.rating || 0) - (a.rating || 0)) // Ordena por avaliação
           };
         })
       );
@@ -396,7 +396,7 @@ const Ranking: React.FC = () => {
                           <span>{series.title}</span>
                         </div>
                       )}
-                      {series.rating && (
+                      {series.rating !== null && (
                         <div className="absolute top-1 right-1 bg-black/70 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs">
                           {series.rating}
                         </div>
