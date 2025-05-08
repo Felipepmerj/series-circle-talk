@@ -1,3 +1,4 @@
+
 export interface Series {
   id: number;
   name: string;
@@ -40,6 +41,7 @@ export interface WatchlistItem {
   userId: string;
   seriesId: number;
   note?: string;
+  notes?: string; // Alternative property name
   addedAt: string;
 }
 
