@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from "react";
-import { Star, Eye, List, Grid as GridIcon } from "lucide-react";
+import { Star, Eye, List, Grid } from "lucide-react";
 import Header from "../components/Header";
 import SeriesCard from "../components/SeriesCard";
 import { api } from "../services/api";
@@ -156,7 +156,7 @@ const Ranking: React.FC = () => {
       setAggregatedSeries(aggregatedSeriesList);
       
       // Update series lists based on the active filter
-      updateSeriesList(aggregatedSeriesList);
+      updateSeriesList(aggregatedSeriesList, activeFilter);
 
     } catch (error) {
       console.error("Error loading all user series:", error);
@@ -166,8 +166,8 @@ const Ranking: React.FC = () => {
   };
 
   // Function to update the series list based on active filter
-  const updateSeriesList = (aggregatedSeriesList: AggregatedSeriesData[]) => {
-    if (activeFilter === "most-watched") {
+  const updateSeriesList = (aggregatedSeriesList: AggregatedSeriesData[], filter: string) => {
+    if (filter === "most-watched") {
       const mostWatchedSeries = [...aggregatedSeriesList]
         .sort((a, b) => b.watchCount - a.watchCount)
         .slice(0, 20);
@@ -185,7 +185,7 @@ const Ranking: React.FC = () => {
       
       setSeries(seriesList);
     } 
-    else if (activeFilter === "best-rated") {
+    else if (filter === "best-rated") {
       const bestRatedSeries = [...aggregatedSeriesList]
         .filter(series => series.averageRating > 0)
         .sort((a, b) => b.averageRating - a.averageRating)
@@ -319,17 +319,12 @@ const Ranking: React.FC = () => {
             ? validRatings.reduce((sum, show) => sum + (show.rating || 0), 0) / validRatings.length
             : 0;
           
-          // Get highest rated series
-          const highestRated = [...watchedShows]
-            .sort((a, b) => (b.rating || 0) - (a.rating || 0))[0];
-            
           return {
             id: profile.id,
             name: profile.name || "Usuário",
             profilePic: profile.profile_pic,
             watchedCount: watchedShows.length,
             averageRating: parseFloat(averageRating.toFixed(1)),
-            highestRated: highestRated?.series_id || null
           };
         })
       );
@@ -351,14 +346,14 @@ const Ranking: React.FC = () => {
       if (aggregatedSeries.length === 0) {
         loadAllUserSeries();
       } else {
-        updateSeriesList(aggregatedSeries);
+        updateSeriesList(aggregatedSeries, "most-watched");
       }
     } 
     else if (value === "best-rated") {
       if (aggregatedSeries.length === 0) {
         loadAllUserSeries();
       } else {
-        updateSeriesList(aggregatedSeries);
+        updateSeriesList(aggregatedSeries, "best-rated");
       }
     }
     else if (value === "users") {
@@ -371,7 +366,9 @@ const Ranking: React.FC = () => {
 
   // Load initial data when component mounts
   useEffect(() => {
-    loadAllUserSeries();
+    if (activeFilter === "most-watched") {
+      loadAllUserSeries();
+    }
   }, []);
 
   return (
@@ -379,7 +376,7 @@ const Ranking: React.FC = () => {
       <Header title="Ranking" showSearchButton />
       
       <Tabs defaultValue="most-watched" className="w-full" onValueChange={handleTabChange}>
-        <TabsList className="grid grid-cols-4 mb-4">
+        <TabsList className="grid grid-cols-3 mb-4">
           <TabsTrigger value="most-watched" className="flex flex-col items-center text-xs py-2">
             <Eye size={18} className="mb-1" />
             <span>Mais Vistas</span>
@@ -392,10 +389,6 @@ const Ranking: React.FC = () => {
             <List size={18} className="mb-1" />
             <span>Listas</span>
           </TabsTrigger>
-          <TabsTrigger value="users" className="flex flex-col items-center text-xs py-2">
-            <GridIcon size={18} className="mb-1" />
-            <span>Amigos</span>
-          </TabsTrigger>
         </TabsList>
         
         {/* View mode toggle */}
@@ -406,7 +399,7 @@ const Ranking: React.FC = () => {
               className={`p-1 rounded-md ${viewMode === 'grid' ? 'bg-muted' : ''}`}
               aria-label="Visualização em grade"
             >
-              <GridIcon size={18} />
+              <Grid size={18} />
             </button>
             <button 
               onClick={() => setViewMode('list')} 

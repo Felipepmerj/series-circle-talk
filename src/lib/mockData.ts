@@ -91,7 +91,7 @@ export const mockUsers: User[] = [
         id: "watch1",
         userId: "user1",
         seriesId: 66732,
-        note: "Todo mundo recomendou, preciso assistir!",
+        notes: "Todo mundo recomendou, preciso assistir!",
         addedAt: "2022-06-01T09:15:00.000Z"
       }
     ]
@@ -125,7 +125,7 @@ export const mockUsers: User[] = [
         id: "watch2",
         userId: "user2",
         seriesId: 1396,
-        note: "Sempre ouço que é a melhor série de todas, preciso conferir.",
+        notes: "Sempre ouço que é a melhor série de todas, preciso conferir.",
         addedAt: "2022-03-20T15:40:00.000Z"
       }
     ]
@@ -159,7 +159,7 @@ export const mockUsers: User[] = [
         id: "watch3",
         userId: "user3",
         seriesId: 1399,
-        note: "Quero assistir antes que me estraguem o final!",
+        notes: "Quero assistir antes que me estraguem o final!",
         addedAt: "2022-01-05T08:50:00.000Z"
       }
     ]
