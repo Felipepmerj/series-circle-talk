@@ -92,6 +92,20 @@ const SeriesDetail: React.FC = () => {
           if (userWatchedShow) {
             setUserRating(userWatchedShow.rating || null);
             setUserComment(userWatchedShow.comment || "");
+            // Adapt userWatchedShow to the Review type for currentUserReview state
+            setCurrentUserReview({
+              id: userWatchedShow.id,
+              rating: userWatchedShow.rating || 0, // Assuming a default rating if null
+              comment: userWatchedShow.comment || "", // Assuming a default empty comment if null
+              createdAt: userWatchedShow.created_at || new Date().toISOString(), // Assuming 'created_at' or using current date as fallback
+              user: {
+                id: user.id,
+                name: user.name || "Usuário", // Use user's name from auth hook
+                name: user?.user_metadata?.name || "Usuário", // Use user's name from user_metadata
+                watchedSeries: [], // Not needed for currentUserReview's user object
+                watchlist: [], // Not needed for currentUserReview's user object
+              },
+            });
           }
           
           // Verificar se a série está na watchlist do usuário
@@ -410,7 +424,7 @@ const SeriesDetail: React.FC = () => {
           <Sheet>
             <SheetTrigger asChild>
               <Button variant="outline" className="w-full sm:w-auto">
-                {currentUserReview ? "Editar sua Review" : "Lista de assistidas"}
+                {currentUserReview ? "Editar sua lista de assistidas" : "Lista de assistidas"}
               </Button>
             </SheetTrigger>
             <SheetContent className="sm:max-w-lg">
