@@ -73,49 +73,6 @@ export const api = {
     }
   },
 
-  // Get feed items (activity from friends)
-  getFeedItems: async (): Promise<FeedItem[]> => {
-    return mockFeed;
-  },
-
-  // Get user details
-  getUserById: async (userId: string): Promise<User | undefined> => {
-    return mockUsers.find(user => user.id === userId);
-  },
-
-  // Get all users (for the friends list)
-  getUsers: async (): Promise<User[]> => {
-    return mockUsers;
-  },
-
-  // Add a review for a series
-  addReview: async (userId: string, seriesId: number, rating: number, comment: string, watchedOn?: string): Promise<SeriesReview> => {
-    const newReview = {
-      id: Date.now().toString(),
-      userId,
-      seriesId,
-      rating,
-      comment,
-      watchedOn,
-      createdAt: new Date().toISOString()
-    };
-    
-    return newReview;
-  },
-
-  // Add a series to watchlist
-  addToWatchlist: async (userId: string, seriesId: number, note?: string): Promise<WatchlistItem> => {
-    const newItem = {
-      id: Date.now().toString(),
-      userId,
-      seriesId,
-      note,
-      addedAt: new Date().toISOString()
-    };
-    
-    return newItem;
-  },
-
   // Image URL helper
   getImageUrl: (path: string | null, size: string = "w500"): string => {
     if (!path) return "/placeholder.svg";

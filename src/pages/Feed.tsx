@@ -29,11 +29,11 @@ const Feed: React.FC = () => {
     const loadFeedActivities = async () => {
       setLoading(true);
       try {
-        // Obter todas as séries assistidas dos usuários registrados no Supabase
+        // Obtém diretamente do Supabase os dados de séries assistidas e watchlist
         const watchedShows = await supabaseService.getAllWatchedShows();
         const watchlistItems = await supabaseService.getAllWatchlistItems();
         
-        // Adicionar séries assistidas ao feed
+        // Processar séries assistidas para o feed
         const watchedActivities = await Promise.all(watchedShows.map(async (item) => {
           try {
             // Buscar informações da série
@@ -48,7 +48,7 @@ const Feed: React.FC = () => {
               seriesId: parseInt(item.tmdb_id, 10),
               type: 'review' as const,
               timestamp: item.created_at || item.watched_at || new Date().toISOString(),
-              reviewId: item.id, // Importante: Passando o ID correto do review
+              reviewId: item.id,
               seriesName: seriesData?.name || "Série desconhecida",
               username: userProfile?.name || "Usuário"
             };
@@ -58,7 +58,7 @@ const Feed: React.FC = () => {
           }
         }));
         
-        // Adicionar itens da watchlist ao feed
+        // Processar itens da watchlist para o feed
         const watchlistActivities = await Promise.all(watchlistItems.map(async (item) => {
           try {
             // Buscar informações da série
@@ -97,6 +97,7 @@ const Feed: React.FC = () => {
       }
     };
 
+    // Carregamos os dados imediatamente ao iniciar a página
     loadFeedActivities();
   }, []);
 

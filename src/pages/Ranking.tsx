@@ -238,7 +238,7 @@ const Ranking: React.FC = () => {
                     id: seriesId,
                     title: seriesDetails?.name || `Série ${seriesId}`,
                     poster_path: seriesDetails?.poster_path,
-                    notes: item.notes, // Use notes instead of note
+                    notes: item.notes, // Use notes property
                     popularity: seriesCountMap.get(seriesId) || 1
                   }
                 });
@@ -282,7 +282,7 @@ const Ranking: React.FC = () => {
       
       setWatchlistSeries(watchlistSeriesArray);
 
-      if (activeFilter === "lists") {
+      if (activeFilter === "watchlist") {
         const seriesList: Series[] = watchlistSeriesArray.map(item => ({
           id: item.id,
           name: item.title,
@@ -359,7 +359,7 @@ const Ranking: React.FC = () => {
     else if (value === "users") {
       loadUserRankings();
     }
-    else if (value === "lists") {
+    else if (value === "watchlist") {
       loadWatchlistSeries();
     }
   };
@@ -385,9 +385,9 @@ const Ranking: React.FC = () => {
             <Star size={18} className="mb-1" />
             <span>Melhores</span>
           </TabsTrigger>
-          <TabsTrigger value="lists" className="flex flex-col items-center text-xs py-2">
+          <TabsTrigger value="watchlist" className="flex flex-col items-center text-xs py-2">
             <List size={18} className="mb-1" />
-            <span>Listas</span>
+            <span>Querem Assistir</span>
           </TabsTrigger>
         </TabsList>
         
@@ -417,7 +417,7 @@ const Ranking: React.FC = () => {
         <TabsContent value="best-rated" className="mt-0">
           {renderSeriesList()}
         </TabsContent>
-        <TabsContent value="lists" className="mt-0">
+        <TabsContent value="watchlist" className="mt-0">
           {renderSeriesList()}
         </TabsContent>
         <TabsContent value="users" className="mt-0">
