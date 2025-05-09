@@ -31,6 +31,7 @@ export interface SeriesReview {
 export interface User {
   id: string;
   name: string;
+  email?: string;
   profilePic?: string;
   watchedSeries: SeriesReview[];
   watchlist: WatchlistItem[];

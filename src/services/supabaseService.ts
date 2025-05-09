@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { User } from "../types/Series";
 
@@ -27,6 +28,7 @@ export interface UserProfile {
   id: string;
   name: string | null;
   profile_pic: string | null;
+  email?: string;
 }
 
 export const supabaseService = {
@@ -565,6 +567,11 @@ export const supabaseService = {
       this.log("Exceção ao buscar perfis:", e);
       return [];
     }
+  },
+  
+  // Alias para manter compatibilidade
+  getAllUserProfiles() {
+    return this.getAllProfiles();
   },
   
   // Buscar todas as séries assistidas (para o feed)

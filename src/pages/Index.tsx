@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Filter } from "lucide-react";
@@ -104,10 +105,10 @@ const Index: React.FC = () => {
     const fetchUsers = async () => {
       // Get users from Supabase instead of using api.getUsers()
       try {
-        const profiles = await supabaseService.getAllUserProfiles();
+        const profiles = await supabaseService.getAllProfiles();
         setUsers(profiles.map(profile => ({
           id: profile.id,
-          name: profile.name || profile.email || 'Usuário'
+          name: profile.name || profile.id
         })));
       } catch (error) {
         console.error("Error fetching users:", error);
