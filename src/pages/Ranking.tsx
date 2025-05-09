@@ -48,7 +48,7 @@ const Ranking: React.FC = () => {
   const [watchlistSeries, setWatchlistSeries] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [activeFilter, setActiveFilter] = useState<string>("most-watched");
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
 
   // Function to load all user series data and aggregate them
   const loadAllUserSeries = async () => {
@@ -56,12 +56,12 @@ const Ranking: React.FC = () => {
     try {
       // Fetch all user profiles
       const profiles = await supabaseService.getAllProfiles();
-      
+
       // Fetch series watched by each user
       const usersWithSeriesData: UserSeriesData[] = await Promise.all(
         profiles.map(async (profile) => {
           const watchedShows = await supabaseService.getWatchedSeries(profile.id);
-          
+
           // Get details for each series watched
           const seriesWithDetails = await Promise.all(
             watchedShows.map(async (show) => {
@@ -84,13 +84,13 @@ const Ranking: React.FC = () => {
               }
             })
           );
-          
+
           // Calculate average rating
           const validRatings = watchedShows.filter(show => show.rating !== null);
-          const averageRating = validRatings.length > 0 
-            ? validRatings.reduce((sum, show) => sum + (show.rating || 0), 0) / validRatings.length 
+          const averageRating = validRatings.length > 0
+            ? validRatings.reduce((sum, show) => sum + (show.rating || 0), 0) / validRatings.length
             : 0;
-          
+
           return {
             userId: profile.id,
             userName: profile.name || "Usuário",
@@ -101,7 +101,7 @@ const Ranking: React.FC = () => {
           };
         })
       );
-      
+
       // Sort users by number of series watched
       setUserSeriesData(usersWithSeriesData.sort((a, b) => b.seriesCount - a.seriesCount));
 
@@ -124,7 +124,7 @@ const Ranking: React.FC = () => {
 
           const seriesData = allSeriesMap.get(series.id)!;
           seriesData.watchCount += 1;
-          
+
           if (series.rating !== null) {
             seriesData.ratings.push(series.rating);
           }
@@ -141,7 +141,7 @@ const Ranking: React.FC = () => {
       // Calculate average ratings
       const aggregatedSeriesList = Array.from(allSeriesMap.values()).map(series => {
         const validRatings = series.ratings.filter(r => r !== null);
-        const avgRating = validRatings.length > 0 
+        const avgRating = validRatings.length > 0
           ? validRatings.reduce((sum, rating) => sum + rating, 0) / validRatings.length
           : 0;
 
@@ -152,7 +152,7 @@ const Ranking: React.FC = () => {
       });
 
       setAggregatedSeries(aggregatedSeriesList);
-      
+
       // Update series lists based on the active filter
       updateSeriesList(aggregatedSeriesList, activeFilter);
 
@@ -169,7 +169,7 @@ const Ranking: React.FC = () => {
       const mostWatchedSeries = [...aggregatedSeriesList]
         .sort((a, b) => b.watchCount - a.watchCount)
         .slice(0, 20);
-      
+
       const seriesList: Series[] = mostWatchedSeries.map(item => ({
         id: item.id,
         name: item.title,
@@ -180,15 +180,15 @@ const Ranking: React.FC = () => {
         backdrop_path: null,
         genres: [], // Add empty genres array to satisfy the type
       }));
-      
+
       setSeries(seriesList);
-    } 
+    }
     else if (filter === "best-rated") {
       const bestRatedSeries = [...aggregatedSeriesList]
         .filter(series => series.averageRating > 0)
         .sort((a, b) => b.averageRating - a.averageRating)
         .slice(0, 20);
-        
+
       const seriesList: Series[] = bestRatedSeries.map(item => ({
         id: item.id,
         name: item.title,
@@ -199,7 +199,7 @@ const Ranking: React.FC = () => {
         backdrop_path: null,
         genres: [], // Add empty genres array
       }));
-      
+
       setSeries(seriesList);
     }
   };
@@ -210,25 +210,25 @@ const Ranking: React.FC = () => {
     try {
       // Get all watchlist items directly from Supabase
       const watchlistItems = await supabaseService.getAllWatchlistItems();
-      
+
       console.log("Fetched watchlist items (including non-public):", watchlistItems);
       console.log("Fetched watchlist items:", watchlistItems.length);
-      
+
       // Group watchlist items by series ID and count how many users added each series
       const seriesCountMap = new Map<number, { count: number, seriesData: any, users: any[] }>();
-      
+
       // Process all watchlist items
       for (const item of watchlistItems) {
         const seriesId = parseInt(item.tmdb_id);
-        
+
         if (!seriesCountMap.has(seriesId)) {
           try {
             // Fetch series details from API
             const seriesDetails = await api.getSeriesById(seriesId);
-            
+
             // Get user who added this item
             const userProfile = await supabaseService.getUserProfile(item.user_id);
-            
+
             seriesCountMap.set(seriesId, {
               count: 1,
               seriesData: {
@@ -251,7 +251,7 @@ const Ranking: React.FC = () => {
           // Series already in map, increment count and add user
           const entry = seriesCountMap.get(seriesId)!;
           entry.count += 1;
-          
+
           // Add user to the users array if not already present
           const userProfile = await supabaseService.getUserProfile(item.user_id);
           entry.users.push({
@@ -262,7 +262,7 @@ const Ranking: React.FC = () => {
           });
         }
       }
-      
+
       // Convert map to array and sort by number of users
       const sortedWatchlistSeries = Array.from(seriesCountMap.values())
         .sort((a, b) => b.count - a.count)
@@ -271,9 +271,9 @@ const Ranking: React.FC = () => {
           userCount: item.count,
           users: item.users
         }));
-      
+
       setWatchlistSeries(sortedWatchlistSeries);
-      
+
 
     } catch (error) {
       console.error("Error loading watchlist series:", error);
@@ -282,64 +282,16 @@ const Ranking: React.FC = () => {
     }
   };
 
-  // Load user rankings data
-  const loadUserRankings = async () => {
-    setLoading(true);
-    try {
-      // Fetch all users
-      const profiles = await supabaseService.getAllProfiles();
-      
-      // Get watched series stats for each user
-      const usersWithStats = await Promise.all(
-        profiles.map(async (profile) => {
-          const watchedShows = await supabaseService.getWatchedSeries(profile.id);
-          const validRatings = watchedShows.filter(show => show.rating);
-          const averageRating = validRatings.length > 0
-            ? validRatings.reduce((sum, show) => sum + (show.rating || 0), 0) / validRatings.length
-            : 0;
-          
-          return {
-            id: profile.id,
-            name: profile.name || "Usuário",
-            profilePic: profile.profile_pic,
-            watchedCount: watchedShows.length,
-            averageRating: parseFloat(averageRating.toFixed(1)),
-          };
-        })
-      );
-      
-      // Sort users by number of series watched
-      setUserRankings(usersWithStats.sort((a, b) => b.watchedCount - a.watchedCount));
-    } catch (error) {
-      console.error("Error loading user rankings:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Handle tab change
-  const handleTabChange = (value: string) => {
-    setActiveFilter(value);
-    
-    if (value === "most-watched") {
-      if (aggregatedSeries.length === 0) {
-        loadAllUserSeries();
-      } else {
-        updateSeriesList(aggregatedSeries, "most-watched");
-      }
-    } 
-    else if (value === "best-rated") {
-      if (aggregatedSeries.length === 0) {
-        loadAllUserSeries();
-      } else {
-        updateSeriesList(aggregatedSeries, "best-rated");
-      }
-    }
-    else if (value === "users") {
-      loadUserRankings();
-    }
-    else if (value === "watchlist") {
+  // Effect to load watchlist data when the watchlist tab is activated
+  useEffect(() => {
+    if (activeFilter === "watchlist") {
       loadWatchlistSeries();
+    }
+  }, [activeFilter]); // Dependency array: runs when activeFilter changes
+
+  // Effect to update the displayed series list when watchlistSeries data changes
+  useEffect(() => {
+    if (activeFilter === "watchlist" && watchlistSeries.length > 0) {
       const seriesList: Series[] = watchlistSeries.map(item => ({
         id: item.id,
         name: item.name,
@@ -352,16 +304,77 @@ const Ranking: React.FC = () => {
       }));
       setSeries(seriesList);
     }
+  }, [watchlistSeries, activeFilter]); // Dependency array: runs when watchlistSeries or activeFilter changes
+
+  // Load user rankings data
+  const loadUserRankings = async () => {
+    setLoading(true);
+    try {
+      // Fetch all users
+      const profiles = await supabaseService.getAllProfiles();
+
+      // Get watched series stats for each user
+      const usersWithStats = await Promise.all(
+        profiles.map(async (profile) => {
+          const watchedShows = await supabaseService.getWatchedSeries(profile.id);
+          const validRatings = watchedShows.filter(show => show.rating);
+          const averageRating = validRatings.length > 0
+            ? validRatings.reduce((sum, show) => sum + (show.rating || 0), 0) / validRatings.length
+            : 0;
+
+          return {
+            id: profile.id,
+            name: profile.name || "Usuário",
+            profilePic: profile.profile_pic,
+            watchedCount: watchedShows.length,
+            averageRating: parseFloat(averageRating.toFixed(1)),
+          };
+        })
+      );
+
+      // Sort users by number of series watched
+      setUserRankings(usersWithStats.sort((a, b) => b.watchedCount - a.watchedCount));
+    } catch (error) {
+      console.error("Error loading user rankings:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle tab change
+  const handleTabChange = (value: string) => {
+    setActiveFilter(value);
+
+    if (value === "most-watched") {
+      if (aggregatedSeries.length === 0) {
+        loadAllUserSeries();
+      } else {
+        updateSeriesList(aggregatedSeries, "most-watched");
+      }
+    }
+    else if (value === "best-rated") {
+      if (aggregatedSeries.length === 0) {
+        loadAllUserSeries();
+      } else {
+        updateSeriesList(aggregatedSeries, "best-rated");
+      }
+    }
+    else if (value === "users") {
+      loadUserRankings();
+    }
+    else if (value === "watchlist") {
+      // Loading is handled by the useEffect when activeFilter changes
+    }
   };
 
   // Load initial data when component mounts
   useEffect(() => {
- loadAllUserSeries(); // Load all data initially
+    // Load all data initially
   }, []);
   return (
     <div className="app-container pb-20">
       <Header title="Ranking" showSearchButton />
-      
+
       <Tabs defaultValue="most-watched" className="w-full" onValueChange={handleTabChange}>
         <TabsList className="grid grid-cols-3 mb-4">
           <TabsTrigger value="most-watched" className="flex flex-col items-center text-xs py-2">
@@ -377,19 +390,19 @@ const Ranking: React.FC = () => {
             <span>Querem Ver</span>
           </TabsTrigger>
         </TabsList>
-        
+
         {/* View mode toggle */}
         <div className="flex justify-end mb-2">
           <div className="flex space-x-1">
-            <button 
-              onClick={() => setViewMode('grid')} 
+            <button
+              onClick={() => setViewMode('grid')}
               className={`p-1 rounded-md ${viewMode === 'grid' ? 'bg-muted' : ''}`}
               aria-label="Visualização em grade"
             >
               <Grid size={18} />
             </button>
-            <button 
-              onClick={() => setViewMode('list')} 
+            <button
+              onClick={() => setViewMode('list')}
               className={`p-1 rounded-md ${viewMode === 'list' ? 'bg-muted' : ''}`}
               aria-label="Visualização em lista"
             >
@@ -397,7 +410,7 @@ const Ranking: React.FC = () => {
             </button>
           </div>
         </div>
-        
+
         <TabsContent value="most-watched" className="mt-0">
           {renderSeriesList()}
         </TabsContent>
@@ -411,11 +424,11 @@ const Ranking: React.FC = () => {
           {renderUserRankings()}
         </TabsContent>
       </Tabs>
-      
+
       <BottomNav />
     </div>
   );
-  
+
   function renderSeriesList() {
     if (loading) {
       return (
@@ -426,7 +439,7 @@ const Ranking: React.FC = () => {
         </div>
       );
     }
-    
+
     if (series.length === 0) {
       return (
         <div className="text-center py-8">
@@ -434,12 +447,12 @@ const Ranking: React.FC = () => {
         </div>
       );
     }
-    
+
     return viewMode === 'grid' ? (
       <div className="grid grid-cols-2 gap-4 mt-2">
         {series.map(item => (
-          <SeriesCard 
-            key={item.id} 
+          <SeriesCard
+            key={item.id}
             series={item}
             showRating={activeFilter === "best-rated"}
           />
@@ -448,13 +461,13 @@ const Ranking: React.FC = () => {
     ) : (
       <div className="space-y-3 mt-2">
         {series.map(item => (
-          <Link 
+          <Link
             key={item.id}
             to={`/series/${item.id}`}
             className="flex items-center p-3 bg-white rounded-lg shadow"
           >
-            <img 
-              src={api.getImageUrl(item.poster_path, "w92")} 
+            <img
+              src={api.getImageUrl(item.poster_path, "w92")}
               alt={item.name}
               className="w-12 h-18 object-cover rounded"
             />
@@ -472,7 +485,7 @@ const Ranking: React.FC = () => {
       </div>
     );
   }
-  
+
   function renderUserRankings() {
     if (loading) {
       return (
@@ -483,7 +496,7 @@ const Ranking: React.FC = () => {
         </div>
       );
     }
-    
+
     if (userRankings.length === 0) {
       return (
         <div className="text-center py-8">
@@ -491,7 +504,7 @@ const Ranking: React.FC = () => {
         </div>
       );
     }
-    
+
     return (
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <Table>
