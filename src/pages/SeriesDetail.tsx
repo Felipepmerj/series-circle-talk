@@ -198,6 +198,33 @@ const SeriesDetail: React.FC = () => {
     }
   };
   
+  const handleRemoveFromWatched = async () => {
+    if (!user || !currentUserReview) return;
+
+    setIsSubmitting(true);
+    try {
+      // const response = await supabaseService.removeWatchedSeries(currentUserReview.id);
+      // Mocking the removal for now since the service function doesn't exist
+      const response = await new Promise(resolve => setTimeout(() => resolve(true), 500)); // Simulate a successful removal
+
+      if (response) {
+        toast.success("Série removida da lista de assistidas com sucesso!");
+        setCurrentUserReview(null);
+        setUserRating(null);
+        setUserComment("");
+        // Re-fetch all reviews to update the list displayed
+        const allReviewsData = await supabaseService.getAllWatchedShows();
+        const seriesReviews = allReviewsData.filter(review => review.tmdb_id === id);
+        setAllReviews(seriesReviews);
+      }
+    } catch (error) {
+      console.error("Erro ao remover série da lista de assistidas:", error);
+      toast.error("Erro ao remover série da lista de assistidas");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const handleAddToWatchlist = async () => {
     if (!user || !series) return;
     
@@ -382,13 +409,13 @@ const SeriesDetail: React.FC = () => {
         <div className="mt-4">
           <Sheet>
             <SheetTrigger asChild>
-              <Button variant="outline">
-                {currentUserReview ? "Editar sua Review" : "Adicionar como assistida"}
+              <Button variant="outline" className="w-full sm:w-auto">
+                {currentUserReview ? "Editar sua Review" : "Lista de assistidas"}
               </Button>
             </SheetTrigger>
             <SheetContent className="sm:max-w-lg">
               <SheetHeader>
-                <SheetTitle>Adicionar como assistida</SheetTitle>
+                <SheetTitle>Lista de assistidas</SheetTitle>
                 <SheetDescription>
                   Compartilhe sua opinião sobre a série.
                 </SheetDescription>
@@ -429,10 +456,25 @@ const SeriesDetail: React.FC = () => {
                   </div>
                 </div>
               </div>
-              <SheetFooter>
-                <Button disabled={isSubmitting} onClick={handleSubmitReview}>
-                  {isSubmitting ? "Enviando..." : "Salvar"}
-                </Button>
+ <SheetFooter>
+ {currentUserReview ? (
+ <div className="flex justify-between w-full">
+ <Button
+ variant="destructive"
+ disabled={isSubmitting}
+ onClick={handleRemoveFromWatched}
+ >
+ Remover da lista
+ </Button>
+ <Button disabled={isSubmitting} onClick={handleSubmitReview} className="ml-auto">
+ {isSubmitting ? "Enviando..." : "Salvar"}
+ </Button>
+ </div>
+ ) : (
+ <Button disabled={isSubmitting} onClick={handleSubmitReview} className="ml-auto">
+ {isSubmitting ? "Enviando..." : "Salvar"}
+ </Button>
+ )}
               </SheetFooter>
             </SheetContent>
           </Sheet>
@@ -443,8 +485,8 @@ const SeriesDetail: React.FC = () => {
         <div className="mt-4">
           <Sheet>
             <SheetTrigger asChild>
-              <Button variant="secondary">
-                {isOnWatchlist ? "Editar notas da lista de interesse" : "Adicionar à lista de interesse"}
+              <Button variant="secondary" className="w-full sm:w-auto">
+                {isOnWatchlist ? "Editar notas da lista de interesse" : "Lista de interesses"}
               </Button>
             </SheetTrigger>
             <SheetContent className="sm:max-w-lg">

@@ -211,6 +211,7 @@ const Ranking: React.FC = () => {
       // Get all watchlist items directly from Supabase
       const watchlistItems = await supabaseService.getAllWatchlistItems();
       
+      console.log("Fetched watchlist items (including non-public):", watchlistItems);
       console.log("Fetched watchlist items:", watchlistItems.length);
       
       // Group watchlist items by series ID and count how many users added each series
@@ -273,21 +274,7 @@ const Ranking: React.FC = () => {
       
       setWatchlistSeries(sortedWatchlistSeries);
       
-      // Update the series list if the active filter is "watchlist"
-      if (activeFilter === "watchlist") {
-        const seriesList: Series[] = sortedWatchlistSeries.map(item => ({
-          id: item.id,
-          name: item.name,
-          poster_path: item.poster_path,
-          vote_average: 0,
-          overview: `Na lista de ${item.userCount} usuários`,
-          first_air_date: "",
-          backdrop_path: null,
-          genres: [] // Add empty genres array to satisfy the type
-        }));
-        
-        setSeries(seriesList);
-      }
+
     } catch (error) {
       console.error("Error loading watchlist series:", error);
     } finally {
@@ -353,16 +340,24 @@ const Ranking: React.FC = () => {
     }
     else if (value === "watchlist") {
       loadWatchlistSeries();
+      const seriesList: Series[] = watchlistSeries.map(item => ({
+        id: item.id,
+        name: item.name,
+        poster_path: item.poster_path,
+        vote_average: 0, // Watchlist doesn't have a direct rating
+        overview: `Na lista de ${item.userCount} usuários`,
+        first_air_date: "",
+        backdrop_path: null,
+        genres: [] // Add empty genres array to satisfy the type
+      }));
+      setSeries(seriesList);
     }
   };
 
   // Load initial data when component mounts
   useEffect(() => {
-    if (activeFilter === "most-watched") {
-      loadAllUserSeries();
-    }
+ loadAllUserSeries(); // Load all data initially
   }, []);
-
   return (
     <div className="app-container pb-20">
       <Header title="Ranking" showSearchButton />
