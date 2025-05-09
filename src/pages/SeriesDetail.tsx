@@ -169,7 +169,7 @@ const SeriesDetail: React.FC = () => {
                   user: {
                     id: profile.id,
                     name: profile.name || "Usuário",
-                    profilePic: profile.profilePic,
+                    profilePic: profile.profile_pic, // Fixed: use profile_pic instead of profilePic
                     watchedSeries: [], // We don't need these for the display
                     watchlist: []
                   }
@@ -192,7 +192,7 @@ const SeriesDetail: React.FC = () => {
                   user: {
                     id: currentUserProfile.id,
                     name: currentUserProfile.name || "Você",
-                    profilePic: currentUserProfile.profilePic,
+                    profilePic: currentUserProfile.profile_pic, // Fixed: use profile_pic instead of profilePic
                     watchedSeries: [],
                     watchlist: []
                   }
