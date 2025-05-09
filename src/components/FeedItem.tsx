@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { MessageCircle } from "lucide-react";
@@ -8,6 +9,7 @@ import { supabaseService } from "../services/supabaseService";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 
 interface FeedItemProps {
   userId: string;
@@ -18,6 +20,15 @@ interface FeedItemProps {
   watchlistItemId?: string;
   username?: string;
   seriesName?: string;
+}
+
+interface Comment {
+  id: string;
+  user_id: string;
+  content: string;
+  created_at: string;
+  userName?: string;
+  profilePic?: string;
 }
 
 const FeedItem: React.FC<FeedItemProps> = ({
@@ -38,6 +49,8 @@ const FeedItem: React.FC<FeedItemProps> = ({
   const [showCommentForm, setShowCommentForm] = useState(false);
   const [newComment, setNewComment] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [loadingComments, setLoadingComments] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -56,6 +69,9 @@ const FeedItem: React.FC<FeedItemProps> = ({
           if (reviewDetails) {
             setRating(reviewDetails.rating);
             setComment(reviewDetails.comment);
+            
+            // Fetch comments for this review
+            await fetchComments(reviewId);
           }
         }
         
@@ -77,6 +93,31 @@ const FeedItem: React.FC<FeedItemProps> = ({
     fetchData();
   }, [userId, seriesId, type, reviewId, watchlistItemId, username]);
 
+  const fetchComments = async (watchedShowId: string) => {
+    setLoadingComments(true);
+    try {
+      const commentsList = await supabaseService.getComments(watchedShowId);
+      
+      // Fetch user profiles for each comment
+      const commentsWithProfiles = await Promise.all(
+        commentsList.map(async (comment: any) => {
+          const userProfile = await supabaseService.getUserProfile(comment.user_id);
+          return {
+            ...comment,
+            userName: userProfile?.name || "Usuário",
+            profilePic: userProfile?.profile_pic || `https://api.dicebear.com/7.x/initials/svg?seed=${userProfile?.name || comment.user_id}`
+          };
+        })
+      );
+      
+      setComments(commentsWithProfiles);
+    } catch (error) {
+      console.error("Error fetching comments:", error);
+    } finally {
+      setLoadingComments(false);
+    }
+  };
+
   const handleCommentClick = () => {
     setShowCommentForm(!showCommentForm);
   };
@@ -87,11 +128,16 @@ const FeedItem: React.FC<FeedItemProps> = ({
     setSubmitting(true);
     try {
       // Save comment to Supabase
-      await supabaseService.addComment({
+      const savedComment = await supabaseService.addComment({
         content: newComment,
         watched_show_id: reviewId,
         public: true
       });
+      
+      if (savedComment && reviewId) {
+        // Refresh comments list
+        await fetchComments(reviewId);
+      }
       
       toast.success("Comentário adicionado com sucesso!");
       setNewComment("");
@@ -160,6 +206,34 @@ const FeedItem: React.FC<FeedItemProps> = ({
           </div>
         </div>
       </div>
+      
+      {/* Comments section */}
+      {comments.length > 0 && (
+        <div className="px-4 py-2 border-t bg-gray-50">
+          <h4 className="text-sm font-medium mb-2">Comentários ({comments.length})</h4>
+          <div className="space-y-3">
+            {comments.map(comment => (
+              <div key={comment.id} className="flex items-start space-x-2">
+                <Avatar className="w-8 h-8">
+                  <AvatarImage src={comment.profilePic} alt={comment.userName} />
+                  <AvatarFallback>{comment.userName?.charAt(0)}</AvatarFallback>
+                </Avatar>
+                <div className="bg-white p-2 rounded-md shadow-sm flex-1">
+                  <div className="flex justify-between items-center mb-1">
+                    <Link to={`/profile/${comment.user_id}`} className="text-xs font-medium">
+                      {comment.userName}
+                    </Link>
+                    <span className="text-xs text-muted-foreground">
+                      {new Date(comment.created_at).toLocaleDateString()}
+                    </span>
+                  </div>
+                  <p className="text-sm">{comment.content}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       
       {/* Interaction buttons */}
       <div className="px-4 py-3 border-t">

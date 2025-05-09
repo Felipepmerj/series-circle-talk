@@ -1,31 +1,34 @@
 
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { MessageSquare, Share2, Copy, Check, Mail, Users } from "lucide-react";
+import { MessageSquare, Users } from "lucide-react";
 import Header from "../components/Header";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import BottomNav from "../components/BottomNav";
 import { supabaseService } from "../services/supabaseService";
 import { useAuth } from "../hooks/useAuth";
+import { api } from "../services/api";
 
 interface FriendProfile {
   id: string;
   name: string;
   profile_pic: string | null;
+  topSeries?: {
+    id: number;
+    title: string;
+    poster_path: string | null;
+    rating: number;
+  }[];
 }
 
 const Invite: React.FC = () => {
   const { user } = useAuth();
-  const [email, setEmail] = useState("");
-  const [copied, setCopied] = useState(false);
-  const [inviteSent, setInviteSent] = useState(false);
   const [friends, setFriends] = useState<FriendProfile[]>([]);
   const [loading, setLoading] = useState(true);
   
   useEffect(() => {
-    const fetchProfiles = async () => {
+    const fetchProfilesWithTopSeries = async () => {
       try {
         setLoading(true);
         const profiles = await supabaseService.getAllProfiles();
@@ -35,7 +38,53 @@ const Invite: React.FC = () => {
           user ? profile.id !== user.id : true
         );
         
-        setFriends(filteredProfiles);
+        // Buscar as 5 séries mais bem avaliadas de cada amigo
+        const profilesWithTopSeries = await Promise.all(
+          filteredProfiles.map(async (profile) => {
+            try {
+              // Buscar séries assistidas por este perfil
+              const watchedShows = await supabaseService.getWatchedSeries(profile.id);
+              
+              // Filtrar séries com avaliações e ordenar por nota (mais alta primeiro)
+              const ratedShows = watchedShows
+                .filter(show => show.rating !== null)
+                .sort((a, b) => (b.rating || 0) - (a.rating || 0));
+              
+              // Pegar as 5 melhores séries
+              const topSeries = await Promise.all(
+                ratedShows.slice(0, 5).map(async (show) => {
+                  try {
+                    const seriesDetails = await api.getSeriesById(show.series_id);
+                    return {
+                      id: show.series_id,
+                      title: seriesDetails?.name || `Série ${show.series_id}`,
+                      poster_path: seriesDetails?.poster_path,
+                      rating: show.rating || 0
+                    };
+                  } catch (error) {
+                    console.error(`Erro ao buscar detalhes da série ${show.series_id}:`, error);
+                    return {
+                      id: show.series_id,
+                      title: `Série ${show.series_id}`,
+                      poster_path: null,
+                      rating: show.rating || 0
+                    };
+                  }
+                })
+              );
+              
+              return {
+                ...profile,
+                topSeries
+              };
+            } catch (error) {
+              console.error(`Erro ao buscar séries para o perfil ${profile.id}:`, error);
+              return { ...profile, topSeries: [] };
+            }
+          })
+        );
+        
+        setFriends(profilesWithTopSeries);
       } catch (error) {
         console.error("Erro ao buscar perfis:", error);
         toast.error("Não foi possível carregar a lista de amigos");
@@ -44,32 +93,11 @@ const Invite: React.FC = () => {
       }
     };
     
-    fetchProfiles();
+    fetchProfilesWithTopSeries();
   }, [user]);
-  
-  const handleInvite = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    // Em um app real, isso enviaria um email de convite
-    // Por enquanto, apenas simular sucesso
-    setInviteSent(true);
-    toast.success("Convite enviado com sucesso!");
-    setTimeout(() => setInviteSent(false), 3000);
-    setEmail("");
-  };
   
   const appUrl = window.location.origin;
   const inviteLink = `${appUrl}/register?invitedBy=${user?.id || 'user'}`;
-  
-  const handleCopyLink = () => {
-    // Copiar para a área de transferência
-    navigator.clipboard.writeText(inviteLink);
-    
-    // Mostrar mensagem de sucesso
-    setCopied(true);
-    toast.success("Link copiado para a área de transferência!");
-    setTimeout(() => setCopied(false), 3000);
-  };
   
   const handleShareWhatsApp = () => {
     const message = encodeURIComponent(`Junte-se a mim no SeriesTalk para compartilharmos nossas experiências sobre séries! ${inviteLink}`);
@@ -85,80 +113,14 @@ const Invite: React.FC = () => {
       <div className="bg-white rounded-lg shadow p-4 mt-4">
         <h2 className="text-lg font-medium mb-4">Convidar amigos</h2>
         
-        <form onSubmit={handleInvite} className="space-y-3">
-          <div className="flex gap-2">
-            <Input 
-              type="email"
-              placeholder="Email do seu amigo"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="flex-grow"
-              required
-            />
-            <Button type="submit" disabled={inviteSent}>
-              <Mail size={16} className="mr-2" />
-              Enviar
-            </Button>
-          </div>
-          
-          {inviteSent && (
-            <p className="text-sm text-green-600 flex items-center">
-              <Check size={14} className="mr-1" />
-              Convite enviado!
-            </p>
-          )}
-        </form>
-        
-        <div className="mt-4">
-          <p className="text-sm text-muted-foreground mb-2">Ou compartilhe o link de convite</p>
-          <Button 
-            variant="outline" 
-            className="flex w-full"
-            onClick={handleCopyLink}
-          >
-            {copied ? (
-              <>
-                <Check size={16} className="mr-2" />
-                Link copiado!
-              </>
-            ) : (
-              <>
-                <Copy size={16} className="mr-2" />
-                Copiar link
-              </>
-            )}
-          </Button>
-          
-          <Button 
-            variant="ghost" 
-            className="flex w-full mt-2"
-            onClick={() => {
-              // Use Web Share API if available
-              if (navigator.share) {
-                navigator.share({
-                  title: 'SeriesTalk',
-                  text: 'Junte-se a mim no SeriesTalk para compartilharmos nossas experiências sobre séries!',
-                  url: inviteLink,
-                });
-              } else {
-                // Fallback if Web Share API is not available
-                handleCopyLink();
-              }
-            }}
-          >
-            <Share2 size={16} className="mr-2" />
-            Compartilhar
-          </Button>
-          
-          <Button 
-            variant="default" 
-            className="flex w-full mt-2 bg-green-600 hover:bg-green-700"
-            onClick={handleShareWhatsApp}
-          >
-            <MessageSquare size={16} className="mr-2" />
-            Compartilhar via WhatsApp
-          </Button>
-        </div>
+        <Button 
+          variant="default" 
+          className="flex w-full bg-green-600 hover:bg-green-700"
+          onClick={handleShareWhatsApp}
+        >
+          <MessageSquare size={16} className="mr-2" />
+          Compartilhar via WhatsApp
+        </Button>
       </div>
       
       {/* Friends list */}
@@ -171,20 +133,49 @@ const Invite: React.FC = () => {
           {loading ? (
             <div className="p-4 text-center">Carregando usuários...</div>
           ) : friends.length > 0 ? (
-            friends.map((friend) => (
-              <Link 
-                key={friend.id}
-                to={`/profile/${friend.id}`}
-                className="flex items-center p-4 border-b last:border-b-0 hover:bg-muted/10"
-              >
-                <img 
-                  src={friend.profile_pic || `https://api.dicebear.com/7.x/initials/svg?seed=${friend.name || friend.id}`} 
-                  alt={friend.name || "Usuário"}
-                  className="w-10 h-10 rounded-full object-cover"
-                />
-                <p className="ml-3 font-medium">{friend.name || "Usuário"}</p>
-              </Link>
-            ))
+            <div className="divide-y">
+              {friends.map((friend) => (
+                <div key={friend.id} className="p-4">
+                  <Link 
+                    to={`/profile/${friend.id}`}
+                    className="flex items-center hover:bg-muted/10"
+                  >
+                    <img 
+                      src={friend.profile_pic || `https://api.dicebear.com/7.x/initials/svg?seed=${friend.name || friend.id}`} 
+                      alt={friend.name || "Usuário"}
+                      className="w-10 h-10 rounded-full object-cover"
+                    />
+                    <p className="ml-3 font-medium">{friend.name || "Usuário"}</p>
+                  </Link>
+                  
+                  {friend.topSeries && friend.topSeries.length > 0 ? (
+                    <div className="mt-3">
+                      <p className="text-sm text-muted-foreground mb-2">Séries mais bem avaliadas:</p>
+                      <div className="flex space-x-2 overflow-x-auto pb-2">
+                        {friend.topSeries.map(series => (
+                          <Link 
+                            key={`${friend.id}-${series.id}`}
+                            to={`/series/${series.id}`}
+                            className="flex-shrink-0 w-16 text-center"
+                          >
+                            <img 
+                              src={series.poster_path ? api.getImageUrl(series.poster_path, "w92") : "/placeholder.svg"}
+                              alt={series.title}
+                              className="w-full rounded-md shadow-sm mb-1"
+                            />
+                            <div className="flex items-center justify-center text-xs font-bold text-yellow-500">
+                              ★ {series.rating.toFixed(1)}
+                            </div>
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="mt-2 text-xs text-muted-foreground">Sem avaliações de séries</p>
+                  )}
+                </div>
+              ))}
+            </div>
           ) : (
             <div className="p-8 text-center">
               <Users size={40} className="mx-auto text-muted-foreground" />
