@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { api } from "../services/api";
@@ -10,11 +9,19 @@ import { supabaseService } from "../services/supabaseService";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Calendar } from "lucide-react";
+import { Calendar, Edit, Trash2 } from "lucide-react";
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger, SheetFooter } from "@/components/ui/sheet";
+import { 
+  Sheet, 
+  SheetContent, 
+  SheetDescription, 
+  SheetHeader, 
+  SheetTitle, 
+  SheetTrigger, 
+  SheetFooter 
+} from "@/components/ui/sheet";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -49,6 +56,9 @@ const SeriesDetail: React.FC = () => {
   const [isOnWatchlist, setIsOnWatchlist] = useState(false);
   const [userWatchlistItem, setUserWatchlistItem] = useState<any>(null);
   const [watchlistNotes, setWatchlistNotes] = useState<string>("");
+  const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
+  const [editedCommentContent, setEditedCommentContent] = useState("");
+  const [comments, setComments] = useState<any[]>([]);
   
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
@@ -105,26 +115,44 @@ const SeriesDetail: React.FC = () => {
   }, [id, user]);
   
   useEffect(() => {
-    if (userWatchedShow && userProfiles.length > 0 && user) {
-      const currentUserProfile = userProfiles.find(p => p.id === user.id);
-      
-      if (currentUserProfile) {
-        setCurrentUserReview({
-          id: userWatchedShow.id,
-          rating: userWatchedShow.rating || 0,
-          comment: userWatchedShow.comment || "",
-          createdAt: userWatchedShow.created_at,
-          user: {
-            id: currentUserProfile.id,
-            name: currentUserProfile.name || "Você",
-            profilePic: currentUserProfile.profile_pic,
-            watchedSeries: [],
-            watchlist: []
-          }
-        });
-      }
+    if (allReviews && allReviews.length > 0) {
+      fetchAllComments();
     }
-  }, [userWatchedShow, userProfiles, user]);
+  }, [allReviews]);
+  
+  const fetchAllComments = async () => {
+    if (!allReviews || allReviews.length === 0) return;
+    
+    const allCommentsPromises = allReviews.map(async (review) => {
+      if (review.id) {
+        const reviewComments = await supabaseService.getComments(review.id);
+        const commentsWithUserData = await Promise.all(
+          reviewComments.map(async (comment: any) => {
+            const userProfile = await supabaseService.getUserProfile(comment.user_id);
+            return {
+              ...comment,
+              userName: userProfile?.name || "Usuário",
+              profilePic: userProfile?.profile_pic || `https://api.dicebear.com/7.x/initials/svg?seed=${userProfile?.name || comment.user_id}`
+            };
+          })
+        );
+        return { reviewId: review.id, comments: commentsWithUserData };
+      }
+      return { reviewId: review.id, comments: [] };
+    });
+    
+    const allComments = await Promise.all(allCommentsPromises);
+    
+    // Flatten comments array
+    const flatComments = allComments.reduce((acc, item) => {
+      return [...acc, ...item.comments.map((c: any) => ({
+        ...c,
+        reviewId: item.reviewId
+      }))];
+    }, []);
+    
+    setComments(flatComments);
+  };
   
   const handleRatingChange = (newRating: number | null) => {
     setUserRating(newRating);
@@ -223,6 +251,38 @@ const SeriesDetail: React.FC = () => {
     }
   };
   
+  const handleEditComment = (commentId: string, content: string) => {
+    setEditingCommentId(commentId);
+    setEditedCommentContent(content);
+  };
+  
+  const handleUpdateComment = async (commentId: string) => {
+    try {
+      const updated = await supabaseService.updateComment(commentId, editedCommentContent);
+      if (updated) {
+        await fetchAllComments();
+        toast.success("Comentário atualizado com sucesso!");
+        setEditingCommentId(null);
+      }
+    } catch (error) {
+      console.error("Erro ao atualizar comentário:", error);
+      toast.error("Erro ao atualizar comentário");
+    }
+  };
+  
+  const handleDeleteComment = async (commentId: string) => {
+    try {
+      const deleted = await supabaseService.deleteComment(commentId);
+      if (deleted) {
+        await fetchAllComments();
+        toast.success("Comentário removido com sucesso!");
+      }
+    } catch (error) {
+      console.error("Erro ao remover comentário:", error);
+      toast.error("Erro ao remover comentário");
+    }
+  };
+  
   if (loading || !series) {
     return (
       <div className="app-container">
@@ -244,16 +304,19 @@ const SeriesDetail: React.FC = () => {
       // Get profile for this user
       const profile = userProfiles.find(p => p.id === review.user_id) || { id: review.user_id, name: "Usuário" };
       
+      const reviewComments = comments.filter(c => c.reviewId === review.id);
+      
       return {
         id: review.id,
         rating: review.rating,
         comment: review.review || "",
         createdAt: review.created_at,
+        comments: reviewComments,
         user: {
           id: profile.id,
           name: profile.name || "Usuário",
-          profilePic: profile.profile_pic, // Using profile_pic from the UserProfile
-          watchedSeries: [], // We don't need these for the display
+          profilePic: profile.profile_pic,
+          watchedSeries: [],
           watchlist: []
         }
       };
@@ -261,7 +324,7 @@ const SeriesDetail: React.FC = () => {
   
   return (
     <div className="app-container pb-20">
-      <Header title={series.name} />
+      <Header title={series?.name || "Carregando..."} />
       
       <div className="relative">
         <img
@@ -443,6 +506,78 @@ const SeriesDetail: React.FC = () => {
                   </CardHeader>
                   <CardContent>
                     <CardDescription>{review.comment}</CardDescription>
+                    
+                    {/* Comments section for each review */}
+                    {review.comments && review.comments.length > 0 && (
+                      <div className="mt-4 space-y-3 pt-3 border-t border-gray-100">
+                        <h4 className="text-sm font-medium mb-2">Comentários ({review.comments.length})</h4>
+                        {review.comments.map((comment: any) => (
+                          <div key={comment.id} className="flex items-start space-x-2">
+                            <Avatar className="w-7 h-7">
+                              <AvatarImage src={comment.profilePic} alt={comment.userName} />
+                              <AvatarFallback>{comment.userName?.charAt(0)}</AvatarFallback>
+                            </Avatar>
+                            <div className="bg-gray-50 p-2 rounded-md flex-1">
+                              <div className="flex justify-between items-center mb-1">
+                                <span className="text-xs font-medium">{comment.userName}</span>
+                                <span className="text-xs text-muted-foreground">
+                                  {new Date(comment.created_at).toLocaleDateString()}
+                                </span>
+                              </div>
+                              
+                              {editingCommentId === comment.id ? (
+                                <div>
+                                  <Textarea
+                                    value={editedCommentContent}
+                                    onChange={(e) => setEditedCommentContent(e.target.value)}
+                                    className="mb-2 text-sm"
+                                  />
+                                  <div className="flex justify-end space-x-2">
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => setEditingCommentId(null)}
+                                    >
+                                      Cancelar
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      onClick={() => handleUpdateComment(comment.id)}
+                                    >
+                                      Salvar
+                                    </Button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <>
+                                  <p className="text-sm">{comment.content}</p>
+                                  {user && user.id === comment.user_id && (
+                                    <div className="flex justify-end space-x-2 mt-1">
+                                      <Button 
+                                        size="sm" 
+                                        variant="ghost" 
+                                        onClick={() => handleEditComment(comment.id, comment.content)}
+                                        className="h-6 px-2"
+                                      >
+                                        <Edit size={14} />
+                                      </Button>
+                                      <Button 
+                                        size="sm" 
+                                        variant="ghost" 
+                                        onClick={() => handleDeleteComment(comment.id)}
+                                        className="h-6 px-2 text-red-500 hover:text-red-700 hover:bg-red-50"
+                                      >
+                                        <Trash2 size={14} />
+                                      </Button>
+                                    </div>
+                                  )}
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               ))

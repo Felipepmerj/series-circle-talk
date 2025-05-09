@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Star, Eye, List, Grid, Heart, BookmarkIcon } from "lucide-react";
+import { Star, Eye, List, Grid, Heart } from "lucide-react";
 import Header from "../components/Header";
 import SeriesCard from "../components/SeriesCard";
 import { api } from "../services/api";
@@ -46,7 +46,6 @@ const Ranking: React.FC = () => {
   const [userSeriesData, setUserSeriesData] = useState<any[]>([]);
   const [aggregatedSeries, setAggregatedSeries] = useState<any[]>([]);
   const [watchlistSeries, setWatchlistSeries] = useState<any[]>([]);
-  const [interestSeries, setInterestSeries] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [activeFilter, setActiveFilter] = useState<string>("most-watched");
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -212,6 +211,8 @@ const Ranking: React.FC = () => {
       // Get all watchlist items directly from Supabase
       const watchlistItems = await supabaseService.getAllWatchlistItems();
       
+      console.log("Fetched watchlist items:", watchlistItems.length);
+      
       // Group watchlist items by series ID and count how many users added each series
       const seriesCountMap = new Map<number, { count: number, seriesData: any, users: any[] }>();
       
@@ -294,72 +295,6 @@ const Ranking: React.FC = () => {
     }
   };
 
-  // Function to load watchlist items for new "Lista de Interesses" tab
-  const loadInterestList = async () => {
-    setLoading(true);
-    try {
-      // Get all watchlist items directly from Supabase
-      const watchlistItems = await supabaseService.getAllWatchlistItems();
-      
-      // Process each watchlist item to get series details
-      const seriesDetailsPromises = watchlistItems.map(async (item) => {
-        try {
-          const seriesId = parseInt(item.tmdb_id);
-          const seriesDetails = await api.getSeriesById(seriesId);
-          
-          // Get the user who added this item to their watchlist
-          const userProfile = await supabaseService.getUserProfile(item.user_id);
-          
-          return {
-            id: seriesId,
-            name: seriesDetails?.name || `Série ${seriesId}`,
-            poster_path: seriesDetails?.poster_path,
-            note: item.note,
-            user: {
-              id: item.user_id,
-              name: userProfile?.name || "Usuário",
-              profilePic: userProfile?.profile_pic
-            },
-            added_at: item.created_at
-          };
-        } catch (error) {
-          console.error(`Error fetching details for series ${item.tmdb_id}:`, error);
-          return null;
-        }
-      });
-      
-      // Wait for all promises to resolve
-      const results = await Promise.all(seriesDetailsPromises);
-      
-      // Filter out null results and sort by most recent
-      const validResults = results.filter(Boolean).sort(
-        (a, b) => new Date(b!.added_at).getTime() - new Date(a!.added_at).getTime()
-      );
-      
-      setInterestSeries(validResults);
-      
-      // If currently on the interests tab, update the series list
-      if (activeFilter === "interests") {
-        const seriesList: Series[] = validResults.map(item => ({
-          id: item!.id,
-          name: item!.name,
-          poster_path: item!.poster_path,
-          vote_average: 0,
-          overview: `Adicionado por ${item!.user.name}`,
-          first_air_date: item!.added_at,
-          backdrop_path: null,
-          genres: []
-        }));
-        
-        setSeries(seriesList);
-      }
-    } catch (error) {
-      console.error("Error loading interest list:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   // Load user rankings data
   const loadUserRankings = async () => {
     setLoading(true);
@@ -419,9 +354,6 @@ const Ranking: React.FC = () => {
     else if (value === "watchlist") {
       loadWatchlistSeries();
     }
-    else if (value === "interests") {
-      loadInterestList();
-    }
   };
 
   // Load initial data when component mounts
@@ -436,7 +368,7 @@ const Ranking: React.FC = () => {
       <Header title="Ranking" showSearchButton />
       
       <Tabs defaultValue="most-watched" className="w-full" onValueChange={handleTabChange}>
-        <TabsList className="grid grid-cols-4 mb-4">
+        <TabsList className="grid grid-cols-3 mb-4">
           <TabsTrigger value="most-watched" className="flex flex-col items-center text-xs py-2">
             <Eye size={18} className="mb-1" />
             <span>Mais Vistas</span>
@@ -448,10 +380,6 @@ const Ranking: React.FC = () => {
           <TabsTrigger value="watchlist" className="flex flex-col items-center text-xs py-2">
             <List size={18} className="mb-1" />
             <span>Querem Ver</span>
-          </TabsTrigger>
-          <TabsTrigger value="interests" className="flex flex-col items-center text-xs py-2">
-            <BookmarkIcon size={18} className="mb-1" />
-            <span>Interesses</span>
           </TabsTrigger>
         </TabsList>
         
@@ -482,9 +410,6 @@ const Ranking: React.FC = () => {
           {renderSeriesList()}
         </TabsContent>
         <TabsContent value="watchlist" className="mt-0">
-          {renderSeriesList()}
-        </TabsContent>
-        <TabsContent value="interests" className="mt-0">
           {renderSeriesList()}
         </TabsContent>
         <TabsContent value="users" className="mt-0">

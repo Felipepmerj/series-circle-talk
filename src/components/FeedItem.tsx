@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { MessageCircle } from "lucide-react";
+import { MessageCircle, Edit, Trash2 } from "lucide-react";
 import { api } from "../services/api";
 import { Series } from "../types/Series";
 import RatingStars from "./RatingStars";
@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { useAuth } from "../hooks/useAuth";
 
 interface FeedItemProps {
   userId: string;
@@ -51,6 +52,9 @@ const FeedItem: React.FC<FeedItemProps> = ({
   const [submitting, setSubmitting] = useState(false);
   const [comments, setComments] = useState<Comment[]>([]);
   const [loadingComments, setLoadingComments] = useState(false);
+  const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
+  const [editedComment, setEditedComment] = useState("");
+  const { user } = useAuth();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -123,7 +127,7 @@ const FeedItem: React.FC<FeedItemProps> = ({
   };
 
   const handleSubmitComment = async () => {
-    if (!newComment.trim()) return;
+    if (!newComment.trim() || !user) return;
     
     setSubmitting(true);
     try {
@@ -131,6 +135,7 @@ const FeedItem: React.FC<FeedItemProps> = ({
       const savedComment = await supabaseService.addComment({
         content: newComment,
         watched_show_id: reviewId,
+        user_id: user.id,
         public: true
       });
       
@@ -147,6 +152,40 @@ const FeedItem: React.FC<FeedItemProps> = ({
       toast.error("Erro ao adicionar comentário");
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleEditComment = (commentId: string, content: string) => {
+    setEditingCommentId(commentId);
+    setEditedComment(content);
+  };
+
+  const handleUpdateComment = async (commentId: string) => {
+    if (!editedComment.trim()) return;
+    
+    try {
+      const updated = await supabaseService.updateComment(commentId, editedComment);
+      if (updated && reviewId) {
+        await fetchComments(reviewId);
+        toast.success("Comentário atualizado com sucesso!");
+        setEditingCommentId(null);
+      }
+    } catch (error) {
+      console.error("Error updating comment:", error);
+      toast.error("Erro ao atualizar comentário");
+    }
+  };
+
+  const handleDeleteComment = async (commentId: string) => {
+    try {
+      const deleted = await supabaseService.deleteComment(commentId);
+      if (deleted && reviewId) {
+        await fetchComments(reviewId);
+        toast.success("Comentário removido com sucesso!");
+      }
+    } catch (error) {
+      console.error("Error deleting comment:", error);
+      toast.error("Erro ao remover comentário");
     }
   };
   
@@ -227,7 +266,55 @@ const FeedItem: React.FC<FeedItemProps> = ({
                       {new Date(comment.created_at).toLocaleDateString()}
                     </span>
                   </div>
-                  <p className="text-sm">{comment.content}</p>
+                  
+                  {editingCommentId === comment.id ? (
+                    <div>
+                      <Textarea
+                        value={editedComment}
+                        onChange={(e) => setEditedComment(e.target.value)}
+                        className="mb-2 text-sm"
+                      />
+                      <div className="flex justify-end space-x-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setEditingCommentId(null)}
+                        >
+                          Cancelar
+                        </Button>
+                        <Button
+                          size="sm"
+                          onClick={() => handleUpdateComment(comment.id)}
+                        >
+                          Salvar
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <p className="text-sm">{comment.content}</p>
+                      {user && user.id === comment.user_id && (
+                        <div className="flex justify-end space-x-2 mt-1">
+                          <Button 
+                            size="sm" 
+                            variant="ghost" 
+                            onClick={() => handleEditComment(comment.id, comment.content)}
+                            className="h-6 px-2"
+                          >
+                            <Edit size={14} />
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant="ghost" 
+                            onClick={() => handleDeleteComment(comment.id)}
+                            className="h-6 px-2 text-red-500 hover:text-red-700 hover:bg-red-50"
+                          >
+                            <Trash2 size={14} />
+                          </Button>
+                        </div>
+                      )}
+                    </>
+                  )}
                 </div>
               </div>
             ))}

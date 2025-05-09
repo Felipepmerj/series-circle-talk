@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { User } from "../types/Series";
 
@@ -711,6 +712,52 @@ export const supabaseService = {
     } catch (e) {
       this.log("Exceção ao buscar comentários:", e);
       return [];
+    }
+  },
+  
+  // Update a comment
+  async updateComment(commentId: string, content: string): Promise<boolean> {
+    try {
+      this.log(`Atualizando comentário ${commentId}`);
+      
+      const { data, error } = await supabase
+        .from('comments')
+        .update({ content })
+        .eq('id', commentId);
+        
+      if (error) {
+        this.log("Erro ao atualizar comentário:", error);
+        return false;
+      }
+      
+      this.log("Comentário atualizado com sucesso");
+      return true;
+    } catch (e) {
+      this.log("Exceção ao atualizar comentário:", e);
+      return false;
+    }
+  },
+  
+  // Delete a comment
+  async deleteComment(commentId: string): Promise<boolean> {
+    try {
+      this.log(`Removendo comentário ${commentId}`);
+      
+      const { error } = await supabase
+        .from('comments')
+        .delete()
+        .eq('id', commentId);
+        
+      if (error) {
+        this.log("Erro ao remover comentário:", error);
+        return false;
+      }
+      
+      this.log("Comentário removido com sucesso");
+      return true;
+    } catch (e) {
+      this.log("Exceção ao remover comentário:", e);
+      return false;
     }
   }
 };
