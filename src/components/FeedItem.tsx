@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { MessageCircle } from "lucide-react";
@@ -6,7 +5,6 @@ import { api } from "../services/api";
 import { Series } from "../types/Series";
 import RatingStars from "./RatingStars";
 import { supabaseService } from "../services/supabaseService";
-import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
