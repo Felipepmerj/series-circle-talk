@@ -1,4 +1,3 @@
-
 import { Series, User, SeriesReview, WatchlistItem, FeedItem } from "../types/Series";
 
 // Normally we would use fetch to call the real TMDB API
@@ -71,6 +70,22 @@ export const api = {
       // Fallback to mock data if API fails
       return mockSeries.find(series => series.id === id);
     }
+  },
+
+  // Get feed items (activity from friends)
+  getFeedItems: async (): Promise<FeedItem[]> => {
+    // This is now just a fallback since we're getting data from Supabase
+    return mockFeed;
+  },
+
+  // Get user details
+  getUserById: async (userId: string): Promise<User | undefined> => {
+    return mockUsers.find(user => user.id === userId);
+  },
+
+  // Get all users (for the friends list)
+  getUsers: async (): Promise<User[]> => {
+    return mockUsers;
   },
 
   // Image URL helper

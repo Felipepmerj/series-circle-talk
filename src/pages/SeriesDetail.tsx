@@ -13,9 +13,16 @@ import { supabaseService, WatchedSeries, WatchlistItem } from "../services/supab
 import { useToast } from "@/hooks/use-toast";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { useNavigate } from "react-router-dom"; // Importe useNavigate
+import { useNavigate } from "react-router-dom";
 import SeriesDetailHeader from "../components/SeriesDetailHeader";
 import RatingStars from "../components/RatingStars";
+
+interface UserProfile {
+  id: string;
+  name?: string;
+  email?: string;
+  profilePic?: string;
+}
 
 const SeriesDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -23,12 +30,11 @@ const SeriesDetail: React.FC = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   
-  const navigate = useNavigate(); // Use useNavigate
+  const navigate = useNavigate();
   const [series, setSeries] = useState<Series | null>(null);
   const [loading, setLoading] = useState(true);
   const [reviews, setReviews] = useState<(SeriesReview & { user: User })[]>([]);
   
-  // Demo user - In a real app, this would come from authentication
   const currentUserId = user?.id || "user1";
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   
@@ -131,28 +137,51 @@ const SeriesDetail: React.FC = () => {
               setWatchlistNote(watchlistItem.notes);
             }
             
-            // Fetch other users' reviews
-            const allReviews: (SeriesReview & { user: User })[] = [];
-            const usersData = await api.getUsers();
+            // Fetch other users' reviews from Supabase instead of using API
+            const allWatchedShows = await supabaseService.getAllWatchedShows();
+            const otherUsersWatched = allWatchedShows.filter(
+              show => show.tmdb_id === id && show.user_id !== user.id
+            );
             
-            for (const userData of usersData) {
-              // Skip current user's review as we already have it
-              if (userData.id === user.id) continue;
-              
-              const userReviews = userData.watchedSeries
-                .filter(review => review.seriesId === Number(id))
-                .map(review => ({
-                  ...review,
-                  user: userData
-                }));
-                
-              allReviews.push(...userReviews);
+            const userProfilesMap = new Map<string, UserProfile>();
+            for (const watched of otherUsersWatched) {
+              if (!userProfilesMap.has(watched.user_id)) {
+                const profile = await supabaseService.getUserProfile(watched.user_id);
+                if (profile) {
+                  userProfilesMap.set(watched.user_id, profile);
+                }
+              }
+            }
+            
+            const allReviews: (SeriesReview & { user: User })[] = [];
+            
+            for (const watched of otherUsersWatched) {
+              const profile = userProfilesMap.get(watched.user_id);
+              if (profile) {
+                allReviews.push({
+                  id: watched.id || "",
+                  userId: watched.user_id,
+                  seriesId: watched.series_id,
+                  rating: watched.rating || 0,
+                  comment: watched.comment || "",
+                  watchedOn: watched.watched_at,
+                  createdAt: watched.created_at || new Date().toISOString(),
+                  user: {
+                    id: profile.id,
+                    name: profile.name || "Usuário",
+                    email: profile.email || "",
+                    profilePic: profile.profilePic,
+                    watchedSeries: [], // We don't need these for the display
+                    watchlist: []
+                  }
+                });
+              }
             }
             
             // Add current user review to the list if exists
-            if (watchedItem && currentUser) {
-              const currentUserForReview = usersData.find(u => u.id === user.id);
-              if (currentUserForReview) {
+            if (watchedItem) {
+              const currentUserProfile = await supabaseService.getUserProfile(user.id);
+              if (currentUserProfile) {
                 allReviews.unshift({
                   id: watchedItem.id || "",
                   userId: watchedItem.user_id,
@@ -161,7 +190,14 @@ const SeriesDetail: React.FC = () => {
                   comment: watchedItem.comment || "",
                   watchedOn: watchedItem.watched_at,
                   createdAt: watchedItem.created_at || new Date().toISOString(),
-                  user: currentUserForReview
+                  user: {
+                    id: currentUserProfile.id,
+                    name: currentUserProfile.name || "Você",
+                    email: currentUserProfile.email || "",
+                    profilePic: currentUserProfile.profilePic,
+                    watchedSeries: [],
+                    watchlist: []
+                  }
                 });
               }
             }
@@ -474,8 +510,7 @@ const SeriesDetail: React.FC = () => {
           <Button 
             variant="default" 
             className="flex-1 flex items-center justify-center"
-            // onClick={() => setShowReviewDialog(true)} // Remova esta linha
-            onClick={() => navigate(location.pathname + '?action=watched')} // Adicione esta linha
+            onClick={() => navigate(location.pathname + '?action=watched')}
           >
             <Check size={16} className="mr-2" /> 
             Marcar como assistido

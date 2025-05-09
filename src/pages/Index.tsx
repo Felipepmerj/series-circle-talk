@@ -4,11 +4,24 @@ import { Filter } from "lucide-react";
 import Header from "../components/Header";
 import FeedItem from "../components/FeedItem";
 import { api } from "../services/api";
-import { FeedItem as FeedItemType, Genre } from "../types/Series";
+import { supabaseService } from "../services/supabaseService";
+import { Series, Genre } from "../types/Series";
 import BottomNav from "../components/BottomNav";
 
+interface FeedActivity {
+  id: string;
+  userId: string;
+  seriesId: number;
+  type: 'review' | 'added-to-watchlist';
+  timestamp: string;
+  reviewId?: string;
+  watchlistItemId?: string;
+  seriesName?: string;
+  username?: string;
+}
+
 const Index: React.FC = () => {
-  const [feedItems, setFeedItems] = useState<FeedItemType[]>([]);
+  const [feedItems, setFeedItems] = useState<FeedActivity[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterUser, setFilterUser] = useState<string | null>(null);
   const [filterGenre, setFilterGenre] = useState<number | null>(null);
@@ -17,8 +30,63 @@ const Index: React.FC = () => {
   useEffect(() => {
     const fetchFeed = async () => {
       try {
-        const feed = await api.getFeedItems();
-        setFeedItems(feed);
+        // Get data from Supabase directly instead of using api.getFeedItems()
+        const watchedShows = await supabaseService.getAllWatchedShows();
+        const watchlistItems = await supabaseService.getAllWatchlistItems();
+        
+        // Process watched shows
+        const watchedActivities = await Promise.all(watchedShows.map(async (item) => {
+          try {
+            const seriesData = await api.getSeriesById(parseInt(item.tmdb_id, 10));
+            const userProfile = await supabaseService.getUserProfile(item.user_id);
+            
+            if (!seriesData || !userProfile) return null;
+            
+            return {
+              id: item.id,
+              userId: item.user_id,
+              seriesId: parseInt(item.tmdb_id, 10),
+              type: 'review' as const,
+              timestamp: item.created_at || item.watched_at || new Date().toISOString(),
+              reviewId: item.id,
+              seriesName: seriesData?.name,
+              username: userProfile?.name
+            };
+          } catch (e) {
+            console.error("Error processing watched show:", e);
+            return null;
+          }
+        }));
+        
+        // Process watchlist items
+        const watchlistActivities = await Promise.all(watchlistItems.map(async (item) => {
+          try {
+            const seriesData = await api.getSeriesById(parseInt(item.tmdb_id, 10));
+            const userProfile = await supabaseService.getUserProfile(item.user_id);
+            
+            if (!seriesData || !userProfile) return null;
+            
+            return {
+              id: item.id,
+              userId: item.user_id,
+              seriesId: parseInt(item.tmdb_id, 10),
+              type: 'added-to-watchlist' as const,
+              timestamp: item.created_at || new Date().toISOString(),
+              watchlistItemId: item.id,
+              seriesName: seriesData?.name,
+              username: userProfile?.name
+            };
+          } catch (e) {
+            console.error("Error processing watchlist item:", e);
+            return null;
+          }
+        }));
+        
+        const allActivities = [...watchedActivities, ...watchlistActivities]
+          .filter(Boolean)
+          .sort((a, b) => new Date(b!.timestamp).getTime() - new Date(a!.timestamp).getTime());
+          
+        setFeedItems(allActivities as FeedActivity[]);
       } catch (error) {
         console.error("Error fetching feed:", error);
       } finally {
@@ -34,18 +102,32 @@ const Index: React.FC = () => {
   
   useEffect(() => {
     const fetchUsers = async () => {
-      const allUsers = await api.getUsers();
-      setUsers(allUsers.map(user => ({ id: user.id, name: user.name })));
+      // Get users from Supabase instead of using api.getUsers()
+      try {
+        const profiles = await supabaseService.getAllUserProfiles();
+        setUsers(profiles.map(profile => ({
+          id: profile.id,
+          name: profile.name || profile.email || 'Usuário'
+        })));
+      } catch (error) {
+        console.error("Error fetching users:", error);
+        setUsers([]);
+      }
     };
     
     const fetchGenres = async () => {
       const genresMap = new Map<number, string>();
       
-      for (const series of await Promise.all(feedItems.map(item => api.getSeriesById(item.seriesId)))) {
-        if (series) {
-          for (const genre of series.genres) {
-            genresMap.set(genre.id, genre.name);
+      for (const item of feedItems) {
+        try {
+          const series = await api.getSeriesById(item.seriesId);
+          if (series) {
+            for (const genre of series.genres) {
+              genresMap.set(genre.id, genre.name);
+            }
           }
+        } catch (error) {
+          console.error("Error fetching series details:", error);
         }
       }
       
@@ -134,9 +216,11 @@ const Index: React.FC = () => {
             userId={item.userId}
             seriesId={item.seriesId}
             type={item.type}
-            timestamp={item.createdAt}
+            timestamp={item.timestamp}
             reviewId={item.reviewId}
             watchlistItemId={item.watchlistItemId}
+            username={item.username}
+            seriesName={item.seriesName}
           />
         ))
       ) : (
