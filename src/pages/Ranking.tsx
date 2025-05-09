@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Star, Eye, List, Grid } from "lucide-react";
 import Header from "../components/Header";
@@ -206,97 +205,88 @@ const Ranking: React.FC = () => {
     }
   };
 
-  // Load watchlist series data
+  // Load watchlist series data - completely rewritten to fix the issue
   const loadWatchlistSeries = async () => {
     setLoading(true);
     try {
-      // Fetch all user profiles
-      const profiles = await supabaseService.getAllProfiles();
+      // Get all watchlist items directly from Supabase
+      const watchlistItems = await supabaseService.getAllWatchlistItems();
       
-      // Fetch watchlists for each user and count occurrences of each series
-      const allWatchlistItems: { userId: string, userName: string, profilePic: string | null, series: any }[] = [];
-      const seriesCountMap = new Map<number, number>();
+      // Group watchlist items by series ID and count how many users added each series
+      const seriesCountMap = new Map<number, { count: number, seriesData: any, users: any[] }>();
       
-      await Promise.all(
-        profiles.map(async (profile) => {
-          const watchlist = await supabaseService.getWatchlist(profile.id);
-          
-          await Promise.all(
-            watchlist.map(async (item) => {
-              try {
-                const seriesId = parseInt(item.series_id.toString());
-                const seriesDetails = await api.getSeriesById(seriesId);
-                
-                // Count occurrences
-                seriesCountMap.set(seriesId, (seriesCountMap.get(seriesId) || 0) + 1);
-                
-                allWatchlistItems.push({
-                  userId: profile.id,
-                  userName: profile.name || "Usuário",
-                  profilePic: profile.profile_pic,
-                  series: {
-                    id: seriesId,
-                    title: seriesDetails?.name || `Série ${seriesId}`,
-                    poster_path: seriesDetails?.poster_path,
-                    notes: item.notes, // Use notes property
-                    popularity: seriesCountMap.get(seriesId) || 1
-                  }
-                });
-              } catch (error) {
-                console.error(`Error fetching details for watchlist item ${item.series_id}:`, error);
-              }
-            })
-          );
-        })
-      );
-      
-      // Group by series ID and count users who have it in watchlist
-      const watchlistSeriesMap = new Map<number, any>();
-      
-      allWatchlistItems.forEach(item => {
-        const seriesId = item.series.id;
+      // Process all watchlist items
+      for (const item of watchlistItems) {
+        const seriesId = parseInt(item.tmdb_id);
         
-        if (!watchlistSeriesMap.has(seriesId)) {
-          watchlistSeriesMap.set(seriesId, {
-            ...item.series,
-            users: []
+        if (!seriesCountMap.has(seriesId)) {
+          try {
+            // Fetch series details from API
+            const seriesDetails = await api.getSeriesById(seriesId);
+            
+            // Get user who added this item
+            const userProfile = await supabaseService.getUserProfile(item.user_id);
+            
+            seriesCountMap.set(seriesId, {
+              count: 1,
+              seriesData: {
+                id: seriesId,
+                name: seriesDetails?.name || `Série ${seriesId}`,
+                poster_path: seriesDetails?.poster_path,
+                overview: seriesDetails?.overview,
+              },
+              users: [{
+                id: item.user_id,
+                name: userProfile?.name || "Usuário",
+                profilePic: userProfile?.profile_pic,
+                notes: item.note
+              }]
+            });
+          } catch (error) {
+            console.error(`Error fetching details for series ${seriesId}:`, error);
+          }
+        } else {
+          // Series already in map, increment count and add user
+          const entry = seriesCountMap.get(seriesId)!;
+          entry.count += 1;
+          
+          // Add user to the users array if not already present
+          const userProfile = await supabaseService.getUserProfile(item.user_id);
+          entry.users.push({
+            id: item.user_id,
+            name: userProfile?.name || "Usuário",
+            profilePic: userProfile?.profile_pic,
+            notes: item.note
           });
         }
-        
-        const seriesData = watchlistSeriesMap.get(seriesId)!;
-        seriesData.users.push({
-          userId: item.userId,
-          userName: item.userName,
-          profilePic: item.profilePic,
-          notes: item.series.notes
-        });
-      });
+      }
       
-      // Convert to array and sort by popularity (number of users who added it)
-      const watchlistSeriesArray = Array.from(watchlistSeriesMap.values())
-        .map(series => ({
-          ...series,
-          userCount: series.users.length
-        }))
-        .sort((a, b) => b.userCount - a.userCount);
+      // Convert map to array and sort by number of users
+      const sortedWatchlistSeries = Array.from(seriesCountMap.values())
+        .sort((a, b) => b.count - a.count)
+        .map(item => ({
+          ...item.seriesData,
+          userCount: item.count,
+          users: item.users
+        }));
       
-      setWatchlistSeries(watchlistSeriesArray);
-
+      setWatchlistSeries(sortedWatchlistSeries);
+      
+      // Update the series list if the active filter is "watchlist"
       if (activeFilter === "watchlist") {
-        const seriesList: Series[] = watchlistSeriesArray.map(item => ({
+        const seriesList: Series[] = sortedWatchlistSeries.map(item => ({
           id: item.id,
-          name: item.title,
+          name: item.name,
           poster_path: item.poster_path,
           vote_average: 0,
           overview: `Na lista de ${item.userCount} usuários`,
           first_air_date: "",
           backdrop_path: null,
-          genres: [], // Add empty genres array to satisfy the type
+          genres: [] // Add empty genres array to satisfy the type
         }));
         
         setSeries(seriesList);
       }
-      
     } catch (error) {
       console.error("Error loading watchlist series:", error);
     } finally {

@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { User } from "../types/Series";
 
@@ -648,6 +647,70 @@ export const supabaseService = {
     } catch (e) {
       this.log("Exceção ao fazer upload do avatar:", e);
       return null;
+    }
+  },
+  
+  // Add new method for comments
+  async addComment(comment: { content: string; watched_show_id?: string; user_id?: string; public?: boolean }): Promise<any> {
+    try {
+      this.log(`Adicionando comentário para ${comment.watched_show_id}`);
+      
+      // If user_id is not provided, use the authenticated user
+      if (!comment.user_id) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          comment.user_id = user.id;
+        } else {
+          this.log("Erro ao adicionar comentário: usuário não autenticado");
+          return null;
+        }
+      }
+      
+      const { data, error } = await supabase
+        .from('comments')
+        .insert({
+          content: comment.content,
+          watched_show_id: comment.watched_show_id,
+          user_id: comment.user_id,
+          public: comment.public || false
+        })
+        .select()
+        .single();
+        
+      if (error) {
+        this.log("Erro ao adicionar comentário:", error);
+        return null;
+      }
+      
+      this.log("Comentário adicionado com sucesso:", data);
+      return data;
+    } catch (e) {
+      this.log("Exceção ao adicionar comentário:", e);
+      return null;
+    }
+  },
+  
+  // Get comments for a watched show
+  async getComments(watchedShowId: string): Promise<any[]> {
+    try {
+      this.log(`Buscando comentários para ${watchedShowId}`);
+      
+      const { data, error } = await supabase
+        .from('comments')
+        .select('*')
+        .eq('watched_show_id', watchedShowId)
+        .order('created_at', { ascending: false });
+        
+      if (error) {
+        this.log("Erro ao buscar comentários:", error);
+        return [];
+      }
+      
+      this.log(`Encontrados ${data.length} comentários`);
+      return data;
+    } catch (e) {
+      this.log("Exceção ao buscar comentários:", e);
+      return [];
     }
   }
 };

@@ -6,6 +6,10 @@ import { api } from "../services/api";
 import { Series } from "../types/Series";
 import RatingStars from "./RatingStars";
 import { supabaseService } from "../services/supabaseService";
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { toast } from "sonner";
 
 interface FeedItemProps {
   userId: string;
@@ -33,19 +37,22 @@ const FeedItem: React.FC<FeedItemProps> = ({
   const [rating, setRating] = useState<number | null>(null);
   const [comment, setComment] = useState<string | null>(null);
   const [profilePic, setProfilePic] = useState<string | null>(null);
+  const [showCommentForm, setShowCommentForm] = useState(false);
+  const [newComment, setNewComment] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
         
-        // Buscar informações da série
+        // Fetch series information
         const seriesData = await api.getSeriesById(seriesId);
         if (seriesData) setSeries(seriesData);
         
-        // Se for um review, obter detalhes adicionais do Supabase
+        // If it's a review, get additional details from Supabase
         if (type === 'review' && reviewId) {
-          // Buscar detalhes do review diretamente do Supabase
+          // Get review details directly from Supabase
           const reviewDetails = await supabaseService.getWatchedShowDetails(reviewId);
           
           if (reviewDetails) {
@@ -54,12 +61,12 @@ const FeedItem: React.FC<FeedItemProps> = ({
           }
         }
         
-        // Buscar avatar do usuário no Supabase
+        // Fetch user's avatar from Supabase
         const userProfile = await supabaseService.getUserProfile(userId);
         if (userProfile && userProfile.profile_pic) {
           setProfilePic(userProfile.profile_pic);
         } else {
-          // Fallback para avatar gerado
+          // Fallback to generated avatar
           setProfilePic(`https://api.dicebear.com/7.x/initials/svg?seed=${username || userId}`);
         }
       } catch (error) {
@@ -71,12 +78,39 @@ const FeedItem: React.FC<FeedItemProps> = ({
     
     fetchData();
   }, [userId, seriesId, type, reviewId, watchlistItemId, username]);
+
+  const handleCommentClick = () => {
+    setShowCommentForm(!showCommentForm);
+  };
+
+  const handleSubmitComment = async () => {
+    if (!newComment.trim()) return;
+    
+    setSubmitting(true);
+    try {
+      // Save comment to Supabase
+      await supabaseService.addComment({
+        content: newComment,
+        watched_show_id: reviewId,
+        public: true
+      });
+      
+      toast.success("Comentário adicionado com sucesso!");
+      setNewComment("");
+      setShowCommentForm(false);
+    } catch (error) {
+      console.error("Error adding comment:", error);
+      toast.error("Erro ao adicionar comentário");
+    } finally {
+      setSubmitting(false);
+    }
+  };
   
   if (loading || !series) {
     return <div className="p-4 border rounded-lg animate-pulse bg-muted/50 mb-4">Carregando...</div>;
   }
   
-  // Formato ano apenas
+  // Format year only
   const yearWatched = new Date(timestamp).getFullYear();
 
   return (
@@ -133,10 +167,40 @@ const FeedItem: React.FC<FeedItemProps> = ({
       <div className="px-4 py-3 border-t">
         <button 
           className="flex items-center text-sm text-muted-foreground hover:text-foreground"
+          onClick={handleCommentClick}
         >
           <MessageCircle size={18} className="mr-1" />
           Comentar
         </button>
+        
+        {/* Comment form */}
+        {showCommentForm && (
+          <div className="mt-3">
+            <Textarea
+              placeholder="Escreva seu comentário..."
+              value={newComment}
+              onChange={(e) => setNewComment(e.target.value)}
+              className="mb-2"
+            />
+            <div className="flex justify-end gap-2">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => setShowCommentForm(false)}
+              >
+                Cancelar
+              </Button>
+              <Button 
+                variant="default" 
+                size="sm" 
+                onClick={handleSubmitComment}
+                disabled={!newComment.trim() || submitting}
+              >
+                {submitting ? "Enviando..." : "Enviar"}
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
