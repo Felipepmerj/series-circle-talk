@@ -18,15 +18,15 @@ const RatingStars: React.FC<RatingStarsProps> = ({
   onChange,
   showPreciseSlider = false
 }) => {
-  const [sliderValue, setSliderValue] = useState(rating);
+  const [sliderValue, setSliderValue] = useState(rating || 0); // Ensure default value is never null
   
   // Update slider value when rating prop changes
   useEffect(() => {
-    setSliderValue(rating);
+    setSliderValue(rating || 0); // Ensure we never set null value
   }, [rating]);
   
   // Convert to 5 stars (if using 10-scale)
-  const displayRating = max === 10 ? rating / 2 : rating;
+  const displayRating = max === 10 ? (rating || 0) / 2 : (rating || 0);
   const displayMax = max === 10 ? 5 : max;
   
   const handleSliderChange = (value: number[]) => {
@@ -76,7 +76,11 @@ const RatingStars: React.FC<RatingStarsProps> = ({
     <div className="space-y-2">
       <div className="flex">
         {renderStars()}
-        {max === 10 && <span className="ml-2 text-sm text-muted-foreground">{rating.toFixed(1)}/10</span>}
+        {max === 10 && (
+          <span className="ml-2 text-sm text-muted-foreground">
+            {(rating !== null && rating !== undefined) ? rating.toFixed(1) : "0.0"}/10
+          </span>
+        )}
       </div>
       
       {showPreciseSlider && onChange && (
