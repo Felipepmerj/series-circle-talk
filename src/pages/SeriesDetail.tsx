@@ -100,10 +100,10 @@ const SeriesDetail: React.FC = () => {
               createdAt: userWatchedShow.created_at || new Date().toISOString(), // Assuming 'created_at' or using current date as fallback
               user: {
                 id: user.id,
-                name: user.name || "Usuário", // Use user's name from auth hook
-                name: user?.user_metadata?.name || "Usuário", // Use user's name from user_metadata
-                watchedSeries: [], // Not needed for currentUserReview's user object
-                watchlist: [], // Not needed for currentUserReview's user object
+                name: user?.email || "Usuário", // Use user's email as a fallback for name
+                // You might need to fetch the user's profile picture separately if not available in user object
+ watchedSeries: [] as any[],
+ watchlist: [] as any[],
               },
             });
           }
