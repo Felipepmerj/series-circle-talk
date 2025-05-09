@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { api } from "../services/api";
@@ -322,6 +323,12 @@ const SeriesDetail: React.FC = () => {
       };
     });
   
+  // Increment rating helper function
+  const incrementRating = () => {
+    const newRating = userRating !== null ? Math.min(10, userRating + 0.1) : 0.1;
+    setUserRating(parseFloat(newRating.toFixed(1)));
+  };
+  
   return (
     <div className="app-container pb-20">
       <Header title={series?.name || "Carregando..."} />
@@ -376,12 +383,12 @@ const SeriesDetail: React.FC = () => {
           <Sheet>
             <SheetTrigger asChild>
               <Button variant="outline">
-                {currentUserReview ? "Editar sua Review" : "Adicionar Review"}
+                {currentUserReview ? "Editar sua Review" : "Adicionar como assistida"}
               </Button>
             </SheetTrigger>
             <SheetContent className="sm:max-w-lg">
               <SheetHeader>
-                <SheetTitle>Adicionar sua Review</SheetTitle>
+                <SheetTitle>Adicionar como assistida</SheetTitle>
                 <SheetDescription>
                   Compartilhe sua opinião sobre a série.
                 </SheetDescription>
@@ -392,7 +399,21 @@ const SeriesDetail: React.FC = () => {
                     Rating
                   </Label>
                   <div className="col-span-3">
-                    <RatingStars rating={userRating} onChange={handleRatingChange} />
+                    <div className="flex flex-col space-y-2">
+                      <RatingStars rating={userRating} onChange={handleRatingChange} />
+                      <div className="flex items-center gap-2">
+                        <Button 
+                          size="sm" 
+                          onClick={incrementRating} 
+                          variant="secondary"
+                        >
+                          +0.1
+                        </Button>
+                        <span className="text-sm text-muted-foreground">
+                          {userRating !== null ? userRating.toFixed(1) : "0.0"}/10
+                        </span>
+                      </div>
+                    </div>
                   </div>
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
@@ -423,12 +444,12 @@ const SeriesDetail: React.FC = () => {
           <Sheet>
             <SheetTrigger asChild>
               <Button variant="secondary">
-                {isOnWatchlist ? "Editar notas da Watchlist" : "Adicionar à Watchlist"}
+                {isOnWatchlist ? "Editar notas da lista de interesse" : "Adicionar à lista de interesse"}
               </Button>
             </SheetTrigger>
             <SheetContent className="sm:max-w-lg">
               <SheetHeader>
-                <SheetTitle>{isOnWatchlist ? "Editar Watchlist" : "Adicionar à Watchlist"}</SheetTitle>
+                <SheetTitle>{isOnWatchlist ? "Editar lista de interesse" : "Adicionar à lista de interesse"}</SheetTitle>
                 <SheetDescription>
                   Adicione notas sobre porque quer assistir essa série.
                 </SheetDescription>
@@ -455,18 +476,18 @@ const SeriesDetail: React.FC = () => {
                       disabled={isAddingToWatchlist}
                       onClick={handleRemoveFromWatchlist}
                     >
-                      Remover da Watchlist
+                      Remover da lista
                     </Button>
                     <Button 
                       disabled={isAddingToWatchlist} 
                       onClick={handleAddToWatchlist}
                     >
-                      {isAddingToWatchlist ? "Atualizando..." : "Atualizar Watchlist"}
+                      {isAddingToWatchlist ? "Atualizando..." : "Atualizar lista"}
                     </Button>
                   </div>
                 ) : (
                   <Button disabled={isAddingToWatchlist} onClick={handleAddToWatchlist}>
-                    {isAddingToWatchlist ? "Adicionando..." : "Adicionar à Watchlist"}
+                    {isAddingToWatchlist ? "Adicionando..." : "Adicionar à lista"}
                   </Button>
                 )}
               </SheetFooter>
