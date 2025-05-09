@@ -368,12 +368,14 @@ const Ranking: React.FC = () => {
   };
 
   // Load initial data when component mounts
-  useEffect(() => {
-    // Load all data initially
-  }, []);
-  return (
+ useEffect(() => {
+    if (activeFilter === "most-watched" && aggregatedSeries.length === 0) {
+      loadAllUserSeries();
+    }
+  }, [activeFilter, aggregatedSeries]); // Add activeFilter and aggregatedSeries as dependencies
+
+ return (
     <div className="app-container pb-20">
-      <Header title="Ranking" showSearchButton />
 
       <Tabs defaultValue="most-watched" className="w-full" onValueChange={handleTabChange}>
         <TabsList className="grid grid-cols-3 mb-4">
