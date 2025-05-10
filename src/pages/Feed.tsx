@@ -41,6 +41,9 @@ const Feed: React.FC = () => {
         const fetchedWatchedShows = await supabaseService.getAllWatchedShows();
         const fetchedWatchlistItems = await supabaseService.getAllWatchlistItems();
         
+        console.log("Fetched watched shows:", fetchedWatchedShows.length);
+        console.log("Fetched watchlist items:", fetchedWatchlistItems.length);
+        
         // Sort by timestamp
         fetchedWatchedShows.sort((a, b) => 
           new Date(b.created_at || b.watched_at || "").getTime() - 
@@ -52,10 +55,17 @@ const Feed: React.FC = () => {
           new Date(a.created_at || "").getTime()
         );
         
-        setWatchedShows(fetchedWatchedShows);
-        setWatchlistItems(fetchedWatchlistItems);
+        setWatchedShows(fetchedWatchedShows || []);
+        setWatchlistItems(fetchedWatchlistItems || []);
         setInitialLoadComplete(true);
-        processInitialBatch();
+        
+        // Only process if we have data
+        if ((fetchedWatchedShows && fetchedWatchedShows.length > 0) || 
+            (fetchedWatchlistItems && fetchedWatchlistItems.length > 0)) {
+          processInitialBatch();
+        } else {
+          setLoading(false);
+        }
       } catch (error) {
         console.error("Erro ao carregar dados iniciais:", error);
         toast.error("Erro ao carregar feed de atividades");
@@ -84,13 +94,20 @@ const Feed: React.FC = () => {
       // Determine what items to process in this batch
       const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
       
-      // Combine both lists for sorting but only take what we need for this batch
+      // Make sure we actually have data to process
+      if (watchedShows.length === 0 && watchlistItems.length === 0) {
+        setAllActivitiesProcessed(true);
+        setLoadingMore(false);
+        return;
+      }
+      
+      // Combine both lists for sorting
       const combinedItems = [
-        ...watchedShows.slice(0, startIndex + ITEMS_PER_PAGE).map(item => ({...item, type: 'watched'})),
-        ...watchlistItems.slice(0, startIndex + ITEMS_PER_PAGE).map(item => ({...item, type: 'watchlist'}))
+        ...watchedShows.map(item => ({...item, type: 'watched'})),
+        ...watchlistItems.map(item => ({...item, type: 'watchlist'}))
       ];
       
-      // Sort combined items by timestamp
+      // Sort combined items by timestamp (most recent first)
       combinedItems.sort((a, b) => {
         const dateA = new Date(a.created_at || a.watched_at || "").getTime();
         const dateB = new Date(b.created_at || b.watched_at || "").getTime();
@@ -106,6 +123,8 @@ const Feed: React.FC = () => {
         return;
       }
       
+      console.log("Processing batch:", itemsToProcess.length, "items");
+      
       // Process this batch of items
       const newActivities = await Promise.all(itemsToProcess.map(async (item) => {
         try {
@@ -115,7 +134,10 @@ const Feed: React.FC = () => {
           const seriesData = await api.getSeriesById(parseInt(item.tmdb_id, 10));
           const userProfile = await supabaseService.getUserProfile(item.user_id);
           
-          if (!seriesData || !userProfile) return null;
+          if (!seriesData || !userProfile) {
+            console.log("Missing data for item:", item.id, "- Series:", !!seriesData, "User:", !!userProfile);
+            return null;
+          }
           
           return {
             id: item.id,
@@ -136,13 +158,13 @@ const Feed: React.FC = () => {
       
       // Filter out null items and add to existing activities
       const validNewActivities = newActivities.filter(Boolean) as FeedActivity[];
+      console.log("Valid new activities:", validNewActivities.length);
+      
       setActivities(prev => [...prev, ...validNewActivities]);
       
       // Check if we've processed everything
-      if (
-        startIndex + ITEMS_PER_PAGE >= watchedShows.length && 
-        startIndex + ITEMS_PER_PAGE >= watchlistItems.length
-      ) {
+      const processedCount = startIndex + ITEMS_PER_PAGE;
+      if (processedCount >= combinedItems.length) {
         setAllActivitiesProcessed(true);
       }
     } catch (error) {
