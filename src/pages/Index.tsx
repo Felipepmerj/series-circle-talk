@@ -35,8 +35,7 @@ const Index: React.FC = () => {
   const [allActivitiesProcessed, setAllActivitiesProcessed] = useState(false);
   const [page, setPage] = useState(1);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [watchedShows, setWatchedShows] = useState<any[]>([]);
-  const [watchlistItems, setWatchlistItems] = useState<any[]>([]);
+  const [combinedItems, setCombinedItems] = useState<any[]>([]);
   
   // Filter-related states
   const [allGenres, setAllGenres] = useState<Genre[]>([]);
@@ -45,25 +44,46 @@ const Index: React.FC = () => {
   useEffect(() => {
     const fetchInitialData = async () => {
       try {
+        console.log("Index.tsx: Iniciando busca de dados");
+        setFeedItems([]);
+        setAllActivitiesProcessed(false);
+        setPage(1);
+        
         // Get all data from Supabase
         const fetchedWatchedShows = await supabaseService.getAllWatchedShows();
         const fetchedWatchlistItems = await supabaseService.getAllWatchlistItems();
         
-        // Sort by timestamp
-        fetchedWatchedShows.sort((a, b) => 
-          new Date(b.created_at || b.watched_at || "").getTime() - 
-          new Date(a.created_at || a.watched_at || "").getTime()
-        );
+        console.log("Index.tsx: Séries assistidas encontradas:", fetchedWatchedShows?.length || 0);
+        console.log("Index.tsx: Itens da watchlist encontrados:", fetchedWatchlistItems?.length || 0);
         
-        fetchedWatchlistItems.sort((a, b) => 
-          new Date(b.created_at || "").getTime() - 
-          new Date(a.created_at || "").getTime()
-        );
+        // Garantir que temos arrays mesmo se a API retornar null/undefined
+        const safeWatchedShows = Array.isArray(fetchedWatchedShows) ? fetchedWatchedShows : [];
+        const safeWatchlistItems = Array.isArray(fetchedWatchlistItems) ? fetchedWatchlistItems : [];
         
-        setWatchedShows(fetchedWatchedShows);
-        setWatchlistItems(fetchedWatchlistItems);
-        setInitialLoadComplete(true);
-        processInitialBatch();
+        // Filter items if filters are applied
+        let filteredWatchedShows = safeWatchedShows;
+        let filteredWatchlistItems = safeWatchlistItems;
+        
+        if (filterUser) {
+          filteredWatchedShows = filteredWatchedShows.filter(item => item.user_id === filterUser);
+          filteredWatchlistItems = filteredWatchlistItems.filter(item => item.user_id === filterUser);
+        }
+        
+        // Combine both lists for sorting
+        const combined = [
+          ...filteredWatchedShows.map(item => ({...item, type: 'watched'})),
+          ...filteredWatchlistItems.map(item => ({...item, type: 'watchlist'}))
+        ];
+        
+        // Sort combined items by timestamp (newest first)
+        combined.sort((a, b) => {
+          const dateA = new Date(a.created_at || a.watched_at || "").getTime();
+          const dateB = new Date(b.created_at || b.watched_at || "").getTime();
+          return dateB - dateA;
+        });
+        
+        console.log("Index.tsx: Total de itens combinados:", combined.length);
+        setCombinedItems(combined);
         
         // Fetch users for filtering
         const profiles = await supabaseService.getAllProfiles();
@@ -71,58 +91,42 @@ const Index: React.FC = () => {
           id: profile.id,
           name: profile.name || profile.id
         })));
+        
+        setInitialLoadComplete(true);
+        await processBatch(1, combined);
+        setLoading(false);
       } catch (error) {
-        console.error("Erro ao carregar dados iniciais:", error);
+        console.error("Index.tsx: Erro ao carregar dados iniciais:", error);
         setLoading(false);
       }
     };
     
     fetchInitialData();
-  }, []);
+  }, [filterUser, filterGenre]); // Reprocessar quando os filtros mudarem
   
-  const processInitialBatch = async () => {
-    try {
-      await processBatch(1);
-      setLoading(false);
-    } catch (error) {
-      console.error("Erro ao processar lote inicial:", error);
-      setLoading(false);
-    }
-  };
-  
-  const processBatch = async (currentPage: number) => {
+  const processBatch = async (currentPage: number, items: any[]) => {
+    console.log(`Index.tsx: Processando lote ${currentPage}`);
     setLoadingMore(true);
     
     try {
       // Determine what items to process in this batch
       const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+      const endIndex = startIndex + ITEMS_PER_PAGE;
       
-      // Filter items if filters are applied
-      let filteredWatchedShows = watchedShows;
-      let filteredWatchlistItems = watchlistItems;
-      
-      if (filterUser) {
-        filteredWatchedShows = filteredWatchedShows.filter(item => item.user_id === filterUser);
-        filteredWatchlistItems = filteredWatchlistItems.filter(item => item.user_id === filterUser);
+      // Check if we have data to process
+      if (!items || items.length === 0) {
+        console.log("Index.tsx: Nenhum item para processar");
+        setAllActivitiesProcessed(true);
+        setLoadingMore(false);
+        return;
       }
       
-      // Combine both lists for sorting but only take what we need for this batch
-      const combinedItems = [
-        ...filteredWatchedShows.slice(0, startIndex + ITEMS_PER_PAGE).map(item => ({...item, type: 'watched'})),
-        ...filteredWatchlistItems.slice(0, startIndex + ITEMS_PER_PAGE).map(item => ({...item, type: 'watchlist'}))
-      ];
-      
-      // Sort combined items by timestamp
-      combinedItems.sort((a, b) => {
-        const dateA = new Date(a.created_at || a.watched_at || "").getTime();
-        const dateB = new Date(b.created_at || b.watched_at || "").getTime();
-        return dateB - dateA;
-      });
-      
       // Limit to what we need for this page
-      const itemsToProcess = combinedItems.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+      const itemsToProcess = items.slice(startIndex, endIndex);
+      console.log(`Index.tsx: Processando ${itemsToProcess.length} itens do índice ${startIndex} ao ${endIndex-1}`);
       
       if (itemsToProcess.length === 0) {
+        console.log("Index.tsx: Todos os itens foram processados");
         setAllActivitiesProcessed(true);
         setLoadingMore(false);
         return;
@@ -134,10 +138,14 @@ const Index: React.FC = () => {
           const isWatched = item.type === 'watched';
           
           // Fetch series data
+          console.log(`Index.tsx: Buscando dados para série ${item.tmdb_id}`);
           const seriesData = await api.getSeriesById(parseInt(item.tmdb_id, 10));
           const userProfile = await supabaseService.getUserProfile(item.user_id);
           
-          if (!seriesData || !userProfile) return null;
+          if (!seriesData || !userProfile) {
+            console.log(`Index.tsx: Dados faltando para o item: ${item.id} - Série: ${!!seriesData}, Usuário: ${!!userProfile}`);
+            return null;
+          }
           
           // Store genres for filtering if we find new ones
           if (seriesData.genres) {
@@ -167,24 +175,26 @@ const Index: React.FC = () => {
             username: userProfile?.name
           };
         } catch (e) {
-          console.error("Erro ao processar item:", e);
+          console.error("Index.tsx: Erro ao processar item:", e);
           return null;
         }
       }));
       
       // Filter out null items and add to existing activities
       const validNewActivities = newActivities.filter(Boolean) as FeedActivity[];
-      setFeedItems(prev => [...prev, ...validNewActivities]);
+      console.log(`Index.tsx: ${validNewActivities.length} novas atividades válidas processadas`);
+      
+      if (validNewActivities.length > 0) {
+        setFeedItems(prev => [...prev, ...validNewActivities]);
+      }
       
       // Check if we've processed everything
-      if (
-        startIndex + ITEMS_PER_PAGE >= filteredWatchedShows.length && 
-        startIndex + ITEMS_PER_PAGE >= filteredWatchlistItems.length
-      ) {
+      if (endIndex >= items.length) {
+        console.log("Index.tsx: Todos os itens foram processados");
         setAllActivitiesProcessed(true);
       }
     } catch (error) {
-      console.error("Erro ao processar lote:", error);
+      console.error("Index.tsx: Erro ao processar lote:", error);
     } finally {
       setLoadingMore(false);
     }
@@ -193,18 +203,8 @@ const Index: React.FC = () => {
   const loadMoreItems = () => {
     const nextPage = page + 1;
     setPage(nextPage);
-    processBatch(nextPage);
+    processBatch(nextPage, combinedItems);
   };
-  
-  useEffect(() => {
-    // Reset feed items when filters change
-    if (initialLoadComplete) {
-      setFeedItems([]);
-      setAllActivitiesProcessed(false);
-      setPage(1);
-      processInitialBatch();
-    }
-  }, [filterUser, filterGenre]); // Only reprocess when filters change
   
   // Filter the feed items
   const filteredFeed = feedItems;

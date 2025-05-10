@@ -31,50 +31,48 @@ const Feed: React.FC = () => {
   const [allActivitiesProcessed, setAllActivitiesProcessed] = useState(false);
   const [page, setPage] = useState(1);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [watchedShows, setWatchedShows] = useState<any[]>([]);
-  const [watchlistItems, setWatchlistItems] = useState<any[]>([]);
+  const [combinedItems, setCombinedItems] = useState<any[]>([]);
 
   useEffect(() => {
     const fetchInitialData = async () => {
       try {
         // Limpar todas as atividades existentes antes de carregar novas
         setActivities([]);
+        setAllActivitiesProcessed(false);
+        setPage(1);
+        
+        console.log("Feed.tsx: Iniciando busca de dados");
         
         // Obter todos os dados do Supabase primeiro
         const fetchedWatchedShows = await supabaseService.getAllWatchedShows();
         const fetchedWatchlistItems = await supabaseService.getAllWatchlistItems();
         
-        console.log("Feed: Buscando dados iniciais");
-        console.log("Feed: Séries assistidas encontradas:", fetchedWatchedShows?.length || 0);
-        console.log("Feed: Itens da watchlist encontrados:", fetchedWatchlistItems?.length || 0);
+        console.log("Feed.tsx: Séries assistidas encontradas:", fetchedWatchedShows?.length || 0);
+        console.log("Feed.tsx: Itens da watchlist encontrados:", fetchedWatchlistItems?.length || 0);
         
         // Garantir que temos arrays mesmo se a API retornar null/undefined
         const safeWatchedShows = Array.isArray(fetchedWatchedShows) ? fetchedWatchedShows : [];
         const safeWatchlistItems = Array.isArray(fetchedWatchlistItems) ? fetchedWatchlistItems : [];
         
+        // Combinar ambos os tipos de itens
+        const combined = [
+          ...safeWatchedShows.map(item => ({...item, type: 'watched'})),
+          ...safeWatchlistItems.map(item => ({...item, type: 'watchlist'}))
+        ];
+        
         // Ordenar por timestamp (mais recente primeiro)
-        safeWatchedShows.sort((a, b) => 
-          new Date(b.created_at || b.watched_at || "").getTime() - 
-          new Date(a.created_at || a.watched_at || "").getTime()
-        );
+        combined.sort((a, b) => {
+          const dateA = new Date(a.created_at || a.watched_at || "").getTime();
+          const dateB = new Date(b.created_at || b.watched_at || "").getTime();
+          return dateB - dateA;
+        });
         
-        safeWatchlistItems.sort((a, b) => 
-          new Date(b.created_at || "").getTime() - 
-          new Date(a.created_at || "").getTime()
-        );
-        
-        // Armazenar dados no estado
-        setWatchedShows(safeWatchedShows);
-        setWatchlistItems(safeWatchlistItems);
+        console.log("Feed.tsx: Total de itens combinados:", combined.length);
+        setCombinedItems(combined);
         setInitialLoadComplete(true);
         
-        // Processar primeiro lote se tivermos dados
-        if (safeWatchedShows.length > 0 || safeWatchlistItems.length > 0) {
-          console.log("Feed: Processando primeiro lote de dados");
-          await processBatch(1);
-        } else {
-          console.log("Feed: Nenhum dado encontrado");
-        }
+        // Processar o primeiro lote
+        await processBatch(1, combined);
         setLoading(false);
       } catch (error) {
         console.error("Erro ao carregar dados iniciais:", error);
@@ -86,45 +84,33 @@ const Feed: React.FC = () => {
     fetchInitialData();
   }, []);
   
-  const processBatch = async (currentPage: number) => {
+  const processBatch = async (currentPage: number, items: any[]) => {
+    console.log(`Feed.tsx: Processando lote ${currentPage}`);
     setLoadingMore(true);
     
     try {
       // Determinar quais itens processar neste lote
       const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+      const endIndex = startIndex + ITEMS_PER_PAGE;
       
       // Certificar que temos dados para processar
-      if (!watchedShows.length && !watchlistItems.length) {
-        console.log("Feed: Nenhum item para processar");
+      if (!items || items.length === 0) {
+        console.log("Feed.tsx: Nenhum item para processar");
         setAllActivitiesProcessed(true);
         setLoadingMore(false);
         return;
       }
-      
-      // Combinar ambas as listas para ordenação
-      const combinedItems = [
-        ...watchedShows.map(item => ({...item, type: 'watched'})),
-        ...watchlistItems.map(item => ({...item, type: 'watchlist'}))
-      ];
-      
-      // Ordenar itens combinados por timestamp (mais recente primeiro)
-      combinedItems.sort((a, b) => {
-        const dateA = new Date(a.created_at || a.watched_at || "").getTime();
-        const dateB = new Date(b.created_at || b.watched_at || "").getTime();
-        return dateB - dateA;
-      });
       
       // Limitar ao que precisamos para esta página
-      const itemsToProcess = combinedItems.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+      const itemsToProcess = items.slice(startIndex, endIndex);
+      console.log(`Feed.tsx: Processando ${itemsToProcess.length} itens do índice ${startIndex} ao ${endIndex-1}`);
       
       if (itemsToProcess.length === 0) {
-        console.log("Feed: Todos os itens foram processados");
+        console.log("Feed.tsx: Todos os itens foram processados");
         setAllActivitiesProcessed(true);
         setLoadingMore(false);
         return;
       }
-      
-      console.log("Feed: Processando lote:", itemsToProcess.length, "itens");
       
       // Processar este lote de itens
       const newActivities = await Promise.all(itemsToProcess.map(async (item) => {
@@ -132,11 +118,12 @@ const Feed: React.FC = () => {
           const isWatched = item.type === 'watched';
           
           // Buscar dados da série
+          console.log(`Feed.tsx: Buscando dados para série ${item.tmdb_id}`);
           const seriesData = await api.getSeriesById(parseInt(item.tmdb_id, 10));
           const userProfile = await supabaseService.getUserProfile(item.user_id);
           
           if (!seriesData || !userProfile) {
-            console.log("Feed: Dados faltando para o item:", item.id, "- Série:", !!seriesData, "Usuário:", !!userProfile);
+            console.log(`Feed.tsx: Dados faltando para o item: ${item.id} - Série: ${!!seriesData}, Usuário: ${!!userProfile}`);
             return null;
           }
           
@@ -152,27 +139,26 @@ const Feed: React.FC = () => {
             username: userProfile?.name || "Usuário"
           };
         } catch (e) {
-          console.error("Feed: Erro ao processar item:", e);
+          console.error("Feed.tsx: Erro ao processar item:", e);
           return null;
         }
       }));
       
       // Filtrar itens nulos e adicionar às atividades existentes
       const validNewActivities = newActivities.filter(Boolean) as FeedActivity[];
-      console.log("Feed: Novas atividades válidas:", validNewActivities.length);
+      console.log(`Feed.tsx: ${validNewActivities.length} novas atividades válidas processadas`);
       
       if (validNewActivities.length > 0) {
         setActivities(prev => [...prev, ...validNewActivities]);
       }
       
       // Verificar se processamos tudo
-      const processedCount = startIndex + ITEMS_PER_PAGE;
-      if (processedCount >= combinedItems.length) {
-        console.log("Feed: Todos os itens foram processados");
+      if (endIndex >= items.length) {
+        console.log("Feed.tsx: Todos os itens foram processados");
         setAllActivitiesProcessed(true);
       }
     } catch (error) {
-      console.error("Feed: Erro ao processar lote:", error);
+      console.error("Feed.tsx: Erro ao processar lote:", error);
       toast.error("Erro ao carregar mais itens");
     } finally {
       setLoadingMore(false);
@@ -182,7 +168,7 @@ const Feed: React.FC = () => {
   const loadMoreItems = () => {
     const nextPage = page + 1;
     setPage(nextPage);
-    processBatch(nextPage);
+    processBatch(nextPage, combinedItems);
   };
 
   return (
@@ -254,7 +240,7 @@ const Feed: React.FC = () => {
           <div className="bg-white rounded-lg shadow p-8 text-center">
             <p className="text-muted-foreground">Nenhuma atividade recente.</p>
             <p className="text-sm text-muted-foreground mt-2">
-              {watchedShows.length || watchlistItems.length ? 
+              {combinedItems.length > 0 ? 
                 "Erro ao processar atividades. Por favor, recarregue a página." :
                 "Comece adicionando séries à sua lista!"}
             </p>
