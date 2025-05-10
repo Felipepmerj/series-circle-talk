@@ -1,13 +1,15 @@
 
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Filter } from "lucide-react";
+import { Filter, Loader } from "lucide-react";
 import Header from "../components/Header";
 import FeedItem from "../components/FeedItem";
 import { api } from "../services/api";
 import { supabaseService } from "../services/supabaseService";
 import { Series, Genre } from "../types/Series";
 import BottomNav from "../components/BottomNav";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
 
 interface FeedActivity {
   id: string;
@@ -21,141 +23,191 @@ interface FeedActivity {
   username?: string;
 }
 
+const ITEMS_PER_PAGE = 5; // Number of items to load per batch
+
 const Index: React.FC = () => {
   const [feedItems, setFeedItems] = useState<FeedActivity[]>([]);
   const [loading, setLoading] = useState(true);
+  const [initialLoadComplete, setInitialLoadComplete] = useState(false);
   const [filterUser, setFilterUser] = useState<string | null>(null);
   const [filterGenre, setFilterGenre] = useState<number | null>(null);
   const [showFilters, setShowFilters] = useState(false);
+  const [allActivitiesProcessed, setAllActivitiesProcessed] = useState(false);
+  const [page, setPage] = useState(1);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [watchedShows, setWatchedShows] = useState<any[]>([]);
+  const [watchlistItems, setWatchlistItems] = useState<any[]>([]);
   
-  useEffect(() => {
-    const fetchFeed = async () => {
-      try {
-        // Get data from Supabase directly instead of using api.getFeedItems()
-        const watchedShows = await supabaseService.getAllWatchedShows();
-        const watchlistItems = await supabaseService.getAllWatchlistItems();
-        
-        // Process watched shows
-        const watchedActivities = await Promise.all(watchedShows.map(async (item) => {
-          try {
-            const seriesData = await api.getSeriesById(parseInt(item.tmdb_id, 10));
-            const userProfile = await supabaseService.getUserProfile(item.user_id);
-            
-            if (!seriesData || !userProfile) return null;
-            
-            return {
-              id: item.id,
-              userId: item.user_id,
-              seriesId: parseInt(item.tmdb_id, 10),
-              type: 'review' as const,
-              timestamp: item.created_at || item.watched_at || new Date().toISOString(),
-              reviewId: item.id,
-              seriesName: seriesData?.name,
-              username: userProfile?.name
-            };
-          } catch (e) {
-            console.error("Error processing watched show:", e);
-            return null;
-          }
-        }));
-        
-        // Process watchlist items
-        const watchlistActivities = await Promise.all(watchlistItems.map(async (item) => {
-          try {
-            const seriesData = await api.getSeriesById(parseInt(item.tmdb_id, 10));
-            const userProfile = await supabaseService.getUserProfile(item.user_id);
-            
-            if (!seriesData || !userProfile) return null;
-            
-            return {
-              id: item.id,
-              userId: item.user_id,
-              seriesId: parseInt(item.tmdb_id, 10),
-              type: 'added-to-watchlist' as const,
-              timestamp: item.created_at || new Date().toISOString(),
-              watchlistItemId: item.id,
-              seriesName: seriesData?.name,
-              username: userProfile?.name
-            };
-          } catch (e) {
-            console.error("Error processing watchlist item:", e);
-            return null;
-          }
-        }));
-        
-        const allActivities = [...watchedActivities, ...watchlistActivities]
-          .filter(Boolean)
-          .sort((a, b) => new Date(b!.timestamp).getTime() - new Date(a!.timestamp).getTime());
-          
-        setFeedItems(allActivities as FeedActivity[]);
-      } catch (error) {
-        console.error("Error fetching feed:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    fetchFeed();
-  }, []);
-  
+  // Filter-related states
   const [allGenres, setAllGenres] = useState<Genre[]>([]);
   const [users, setUsers] = useState<{id: string, name: string}[]>([]);
   
   useEffect(() => {
-    const fetchUsers = async () => {
-      // Get users from Supabase instead of using api.getUsers()
+    const fetchInitialData = async () => {
       try {
+        // Get all data from Supabase
+        const fetchedWatchedShows = await supabaseService.getAllWatchedShows();
+        const fetchedWatchlistItems = await supabaseService.getAllWatchlistItems();
+        
+        // Sort by timestamp
+        fetchedWatchedShows.sort((a, b) => 
+          new Date(b.created_at || b.watched_at || "").getTime() - 
+          new Date(a.created_at || a.watched_at || "").getTime()
+        );
+        
+        fetchedWatchlistItems.sort((a, b) => 
+          new Date(b.created_at || "").getTime() - 
+          new Date(a.created_at || "").getTime()
+        );
+        
+        setWatchedShows(fetchedWatchedShows);
+        setWatchlistItems(fetchedWatchlistItems);
+        setInitialLoadComplete(true);
+        processInitialBatch();
+        
+        // Fetch users for filtering
         const profiles = await supabaseService.getAllProfiles();
         setUsers(profiles.map(profile => ({
           id: profile.id,
           name: profile.name || profile.id
         })));
       } catch (error) {
-        console.error("Error fetching users:", error);
-        setUsers([]);
+        console.error("Erro ao carregar dados iniciais:", error);
+        setLoading(false);
       }
     };
     
-    const fetchGenres = async () => {
-      const genresMap = new Map<number, string>();
+    fetchInitialData();
+  }, []);
+  
+  const processInitialBatch = async () => {
+    try {
+      await processBatch(1);
+      setLoading(false);
+    } catch (error) {
+      console.error("Erro ao processar lote inicial:", error);
+      setLoading(false);
+    }
+  };
+  
+  const processBatch = async (currentPage: number) => {
+    setLoadingMore(true);
+    
+    try {
+      // Determine what items to process in this batch
+      const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
       
-      for (const item of feedItems) {
+      // Filter items if filters are applied
+      let filteredWatchedShows = watchedShows;
+      let filteredWatchlistItems = watchlistItems;
+      
+      if (filterUser) {
+        filteredWatchedShows = filteredWatchedShows.filter(item => item.user_id === filterUser);
+        filteredWatchlistItems = filteredWatchlistItems.filter(item => item.user_id === filterUser);
+      }
+      
+      // Combine both lists for sorting but only take what we need for this batch
+      const combinedItems = [
+        ...filteredWatchedShows.slice(0, startIndex + ITEMS_PER_PAGE).map(item => ({...item, type: 'watched'})),
+        ...filteredWatchlistItems.slice(0, startIndex + ITEMS_PER_PAGE).map(item => ({...item, type: 'watchlist'}))
+      ];
+      
+      // Sort combined items by timestamp
+      combinedItems.sort((a, b) => {
+        const dateA = new Date(a.created_at || a.watched_at || "").getTime();
+        const dateB = new Date(b.created_at || b.watched_at || "").getTime();
+        return dateB - dateA;
+      });
+      
+      // Limit to what we need for this page
+      const itemsToProcess = combinedItems.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+      
+      if (itemsToProcess.length === 0) {
+        setAllActivitiesProcessed(true);
+        setLoadingMore(false);
+        return;
+      }
+      
+      // Process this batch of items
+      const newActivities = await Promise.all(itemsToProcess.map(async (item) => {
         try {
-          const series = await api.getSeriesById(item.seriesId);
-          if (series) {
-            for (const genre of series.genres) {
-              genresMap.set(genre.id, genre.name);
+          const isWatched = item.type === 'watched';
+          
+          // Fetch series data
+          const seriesData = await api.getSeriesById(parseInt(item.tmdb_id, 10));
+          const userProfile = await supabaseService.getUserProfile(item.user_id);
+          
+          if (!seriesData || !userProfile) return null;
+          
+          // Store genres for filtering if we find new ones
+          if (seriesData.genres) {
+            const newGenres = seriesData.genres.filter(
+              genre => !allGenres.some(existingGenre => existingGenre.id === genre.id)
+            );
+            
+            if (newGenres.length > 0) {
+              setAllGenres(prev => [...prev, ...newGenres]);
             }
           }
-        } catch (error) {
-          console.error("Error fetching series details:", error);
+          
+          // If genre filter is active and this series doesn't match, skip it
+          if (filterGenre && (!seriesData.genres || !seriesData.genres.some(genre => genre.id === filterGenre))) {
+            return null;
+          }
+          
+          return {
+            id: item.id,
+            userId: item.user_id,
+            seriesId: parseInt(item.tmdb_id, 10),
+            type: isWatched ? 'review' : 'added-to-watchlist' as 'review' | 'added-to-watchlist',
+            timestamp: item.created_at || item.watched_at || new Date().toISOString(),
+            reviewId: isWatched ? item.id : undefined,
+            watchlistItemId: !isWatched ? item.id : undefined,
+            seriesName: seriesData?.name,
+            username: userProfile?.name
+          };
+        } catch (e) {
+          console.error("Erro ao processar item:", e);
+          return null;
         }
-      }
+      }));
       
-      setAllGenres(Array.from(genresMap).map(([id, name]) => ({ id, name })));
-    };
-    
-    if (feedItems.length > 0) {
-      fetchUsers();
-      fetchGenres();
+      // Filter out null items and add to existing activities
+      const validNewActivities = newActivities.filter(Boolean) as FeedActivity[];
+      setFeedItems(prev => [...prev, ...validNewActivities]);
+      
+      // Check if we've processed everything
+      if (
+        startIndex + ITEMS_PER_PAGE >= filteredWatchedShows.length && 
+        startIndex + ITEMS_PER_PAGE >= filteredWatchlistItems.length
+      ) {
+        setAllActivitiesProcessed(true);
+      }
+    } catch (error) {
+      console.error("Erro ao processar lote:", error);
+    } finally {
+      setLoadingMore(false);
     }
-  }, [feedItems]);
+  };
   
-  const filteredFeed = feedItems.filter(item => {
-    let include = true;
-    
-    if (filterUser) {
-      include = include && item.userId === filterUser;
+  const loadMoreItems = () => {
+    const nextPage = page + 1;
+    setPage(nextPage);
+    processBatch(nextPage);
+  };
+  
+  useEffect(() => {
+    // Reset feed items when filters change
+    if (initialLoadComplete) {
+      setFeedItems([]);
+      setAllActivitiesProcessed(false);
+      setPage(1);
+      processInitialBatch();
     }
-    
-    if (filterGenre) {
-      // This would need to check if the series has this genre
-      // For now, we'll just keep all items if a genre filter is set
-      // as we'd need to fetch all series data to check genres
-    }
-    
-    return include;
-  });
+  }, [filterUser, filterGenre]); // Only reprocess when filters change
+  
+  // Filter the feed items
+  const filteredFeed = feedItems;
   
   return (
     <div className="app-container">
@@ -205,27 +257,67 @@ const Index: React.FC = () => {
       )}
       
       {loading ? (
-        <div className="animate-pulse space-y-4">
-          {[1, 2, 3].map(i => (
-            <div key={i} className="bg-muted h-40 rounded-lg"></div>
+        <div className="space-y-4">
+          {[1, 2, 3].map((index) => (
+            <div key={index} className="bg-white rounded-lg shadow p-4">
+              <div className="flex items-center space-x-3">
+                <Skeleton className="h-10 w-10 rounded-full" />
+                <div className="space-y-2">
+                  <Skeleton className="h-4 w-32" />
+                  <Skeleton className="h-3 w-20" />
+                </div>
+              </div>
+              <div className="mt-3 flex">
+                <Skeleton className="h-20 w-16" />
+                <div className="ml-3 space-y-2 flex-1">
+                  <Skeleton className="h-4 w-3/4" />
+                  <Skeleton className="h-3 w-1/2" />
+                  <Skeleton className="h-10 w-full" />
+                </div>
+              </div>
+            </div>
           ))}
         </div>
       ) : filteredFeed.length > 0 ? (
-        filteredFeed.map(item => (
-          <FeedItem 
-            key={item.id}
-            userId={item.userId}
-            seriesId={item.seriesId}
-            type={item.type}
-            timestamp={item.timestamp}
-            reviewId={item.reviewId}
-            watchlistItemId={item.watchlistItemId}
-            username={item.username}
-            seriesName={item.seriesName}
-          />
-        ))
+        <>
+          <div className="space-y-4">
+            {filteredFeed.map(item => (
+              <FeedItem 
+                key={item.id}
+                userId={item.userId}
+                seriesId={item.seriesId}
+                type={item.type}
+                timestamp={item.timestamp}
+                reviewId={item.reviewId}
+                watchlistItemId={item.watchlistItemId}
+                username={item.username}
+                seriesName={item.seriesName}
+              />
+            ))}
+          </div>
+          
+          {!allActivitiesProcessed && (
+            <div className="mt-4 flex justify-center pb-20">
+              <Button 
+                onClick={loadMoreItems} 
+                disabled={loadingMore}
+                variant="outline"
+                className="w-full max-w-xs"
+              >
+                {loadingMore ? (
+                  <span className="flex items-center">
+                    <Loader className="h-4 w-4 mr-2 animate-spin" />
+                    Carregando...
+                  </span>
+                ) : (
+                  "Carregar mais"
+                )}
+              </Button>
+            </div>
+          )}
+        </>
       ) : (
-        <div className="text-center py-8">
+        <div className="text-center py-8 mb-20">
           <p className="text-muted-foreground">Nenhuma atividade encontrada.</p>
           {filterUser || filterGenre ? (
             <button 
