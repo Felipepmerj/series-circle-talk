@@ -56,8 +56,13 @@ export const useFeedData = () => {
         
         // Sort by timestamp (newest first)
         combined.sort((a, b) => {
-          const dateA = new Date(a.created_at || a.watched_at || "").getTime();
-          const dateB = new Date(b.created_at || b.watched_at || "").getTime();
+          // Handle different timestamp properties based on the item type
+          const dateA = new Date(
+            a.type === 'watched' ? a.watched_at || a.created_at : a.created_at
+          ).getTime();
+          const dateB = new Date(
+            b.type === 'watched' ? b.watched_at || b.created_at : b.created_at
+          ).getTime();
           return dateB - dateA;
         });
         
@@ -126,7 +131,7 @@ export const useFeedData = () => {
             userId: item.user_id,
             seriesId: parseInt(item.tmdb_id, 10),
             type: isWatched ? 'review' : 'added-to-watchlist',
-            timestamp: item.created_at || item.watched_at || new Date().toISOString(),
+            timestamp: isWatched ? (item.watched_at || item.created_at) : item.created_at,
             reviewId: isWatched ? item.id : undefined,
             watchlistItemId: !isWatched ? item.id : undefined,
             seriesName: seriesData?.name || "Série desconhecida",

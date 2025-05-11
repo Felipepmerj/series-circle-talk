@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 
 export const supabaseService = {
@@ -274,4 +275,197 @@ export const supabaseService = {
       return null;
     }
   },
+
+  // Adding the missing methods that are causing TypeScript errors
+  
+  // Update comment
+  async updateComment(commentId: string, content: string) {
+    try {
+      const { data, error } = await supabase
+        .from('comments')
+        .update({ content })
+        .eq('id', commentId)
+        .select();
+
+      if (error) {
+        console.error('Error updating comment:', error);
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Error in updateComment:', error);
+      return false;
+    }
+  },
+
+  // Delete comment
+  async deleteComment(commentId: string) {
+    try {
+      const { error } = await supabase
+        .from('comments')
+        .delete()
+        .eq('id', commentId);
+
+      if (error) {
+        console.error('Error deleting comment:', error);
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Error in deleteComment:', error);
+      return false;
+    }
+  },
+
+  // Method for Series Search Result
+  async addToWatchlist(data: {
+    user_id: string;
+    series_id: number;
+    title: string;
+    poster_path: string | null;
+    notes: string;
+  }) {
+    try {
+      const { data: result, error } = await supabase
+        .from('watchlist')
+        .insert([{ 
+          user_id: data.user_id, 
+          tmdb_id: data.series_id.toString(),
+          note: data.notes,
+          public: true
+        }])
+        .select();
+
+      if (error) {
+        console.error('Error adding to watchlist:', error);
+        return null;
+      }
+
+      return result;
+    } catch (error) {
+      console.error('Error in addToWatchlist:', error);
+      return null;
+    }
+  },
+
+  // Methods for SeriesDetail.tsx
+  async getAllUserProfiles() {
+    return this.getAllProfiles();
+  },
+
+  async getWatchedSeries(userId: string) {
+    try {
+      const { data, error } = await supabase
+        .from('watched_shows')
+        .select('*')
+        .eq('user_id', userId)
+        .order('watched_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching watched series:', error);
+        return [];
+      }
+
+      return data || [];
+    } catch (error) {
+      console.error('Error in getWatchedSeries:', error);
+      return [];
+    }
+  },
+
+  async getWatchlist(userId: string) {
+    try {
+      const { data, error } = await supabase
+        .from('watchlist')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching watchlist:', error);
+        return [];
+      }
+
+      return data || [];
+    } catch (error) {
+      console.error('Error in getWatchlist:', error);
+      return [];
+    }
+  },
+
+  async addWatchedSeries(data: {
+    userId: string;
+    seriesId: number;
+    rating: number;
+    comment: string;
+    public: boolean;
+  }) {
+    return this.addWatchedShow(
+      data.userId,
+      data.seriesId.toString(),
+      data.rating,
+      data.comment,
+      data.public
+    );
+  },
+
+  async removeFromWatchlist(itemId: string) {
+    return this.deleteWatchlistItem(itemId);
+  },
+
+  // UserProfile methods
+  async updateUserProfile(data: {
+    id: string;
+    name?: string;
+    profile_pic?: string | null;
+  }) {
+    try {
+      const { data: result, error } = await supabase
+        .from('profiles')
+        .update({
+          name: data.name,
+          profile_pic: data.profile_pic
+        })
+        .eq('id', data.id)
+        .select();
+
+      if (error) {
+        console.error('Error updating user profile:', error);
+        return null;
+      }
+
+      return result?.[0] || null;
+    } catch (error) {
+      console.error('Error in updateUserProfile:', error);
+      return null;
+    }
+  },
+
+  async uploadAvatar(userId: string, file: File) {
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${userId}-${Date.now()}.${fileExt}`;
+      const filePath = `avatars/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, file);
+
+      if (uploadError) {
+        console.error('Error uploading avatar:', uploadError);
+        return null;
+      }
+
+      const { data: urlData } = await supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath);
+
+      return urlData.publicUrl;
+    } catch (error) {
+      console.error('Error in uploadAvatar:', error);
+      return null;
+    }
+  }
 };

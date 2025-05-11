@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { MessageCircle, Edit, Trash2 } from "lucide-react";
@@ -72,7 +71,7 @@ const FeedItem: React.FC<FeedItemProps> = ({
           
           if (reviewDetails) {
             setRating(reviewDetails.rating);
-            setComment(reviewDetails.comment);
+            setComment(reviewDetails.review);
             
             // Fetch comments for this review
             await fetchComments(reviewId, 'watched_show_id');
