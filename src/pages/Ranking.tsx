@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect } from "react";
-import { Star, Eye, List, Grid, Heart } from "lucide-react";
+import { Star, Eye, List, Grid, Heart, CalendarDays } from "lucide-react";
 import Header from "../components/Header";
 import SeriesCard from "../components/SeriesCard";
 import { api } from "../services/api";
@@ -22,6 +23,7 @@ interface UserSeriesData {
     title: string;
     poster_path: string | null;
     rating: number | null;
+    first_air_date?: string;
   }[];
 }
 
@@ -29,6 +31,7 @@ interface AggregatedSeriesData {
   id: number;
   title: string;
   poster_path: string | null;
+  first_air_date?: string;
   watchCount: number;
   averageRating: number;
   ratings: number[];
@@ -46,6 +49,7 @@ const Ranking: React.FC = () => {
   const [userSeriesData, setUserSeriesData] = useState<any[]>([]);
   const [aggregatedSeries, setAggregatedSeries] = useState<any[]>([]);
   const [watchlistSeries, setWatchlistSeries] = useState<any[]>([]);
+  const [releasesSeries, setReleasesSeries] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [activeFilter, setActiveFilter] = useState<string>("most-watched");
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
@@ -71,6 +75,7 @@ const Ranking: React.FC = () => {
                   id: parseInt(show.series_id.toString()),
                   title: seriesDetails?.name || `Série ${show.series_id}`,
                   poster_path: seriesDetails?.poster_path,
+                  first_air_date: seriesDetails?.first_air_date,
                   rating: show.rating
                 };
               } catch (error) {
@@ -115,6 +120,7 @@ const Ranking: React.FC = () => {
               id: series.id,
               title: series.title,
               poster_path: series.poster_path,
+              first_air_date: series.first_air_date,
               watchCount: 0,
               averageRating: 0,
               ratings: [],
@@ -153,8 +159,20 @@ const Ranking: React.FC = () => {
 
       setAggregatedSeries(aggregatedSeriesList);
 
+      // Prepare the releases list (sorted by first_air_date)
+      const releasesList = [...aggregatedSeriesList]
+        .filter(series => series.first_air_date) // Only include series with a release date
+        .sort((a, b) => {
+          // Sort by first_air_date descending (newest first)
+          if (!a.first_air_date) return 1;
+          if (!b.first_air_date) return -1;
+          return new Date(b.first_air_date).getTime() - new Date(a.first_air_date).getTime();
+        });
+      
+      setReleasesSeries(releasesList);
+
       // Update series lists based on the active filter
-      updateSeriesList(aggregatedSeriesList, activeFilter);
+      updateSeriesList(aggregatedSeriesList, releasesList, activeFilter);
 
     } catch (error) {
       console.error("Error loading all user series:", error);
@@ -164,7 +182,7 @@ const Ranking: React.FC = () => {
   };
 
   // Function to update the series list based on active filter
-  const updateSeriesList = (aggregatedSeriesList: AggregatedSeriesData[], filter: string) => {
+  const updateSeriesList = (aggregatedSeriesList: AggregatedSeriesData[], releasesList: AggregatedSeriesData[], filter: string) => {
     if (filter === "most-watched") {
       const mostWatchedSeries = [...aggregatedSeriesList]
         .sort((a, b) => b.watchCount - a.watchCount)
@@ -176,7 +194,7 @@ const Ranking: React.FC = () => {
         poster_path: item.poster_path,
         vote_average: item.averageRating * 2, // Convert 5-star scale to 10-star scale
         overview: `Assistido por ${item.watchCount} usuários`,
-        first_air_date: "",
+        first_air_date: item.first_air_date || "",
         backdrop_path: null,
         genres: [], // Add empty genres array to satisfy the type
       }));
@@ -195,13 +213,41 @@ const Ranking: React.FC = () => {
         poster_path: item.poster_path,
         vote_average: item.averageRating * 2,
         overview: `Avaliação média: ${item.averageRating}/5`,
-        first_air_date: "",
+        first_air_date: item.first_air_date || "",
         backdrop_path: null,
         genres: [], // Add empty genres array
       }));
 
       setSeries(seriesList);
     }
+    else if (filter === "releases") {
+      const seriesList: Series[] = releasesList.map(item => ({
+        id: item.id,
+        name: item.title,
+        poster_path: item.poster_path,
+        vote_average: item.averageRating * 2,
+        overview: `Lançamento: ${formatDate(item.first_air_date || "")}`,
+        first_air_date: item.first_air_date || "",
+        backdrop_path: null,
+        genres: [], // Add empty genres array
+      }));
+
+      setSeries(seriesList);
+    }
+  };
+
+  // Format date to display in a user-friendly way
+  const formatDate = (dateString: string): string => {
+    if (!dateString) return "Data desconhecida";
+    
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return "Data inválida";
+    
+    return date.toLocaleDateString('pt-BR', { 
+      day: '2-digit', 
+      month: '2-digit', 
+      year: 'numeric' 
+    });
   };
 
   // Load watchlist series data - completely rewritten to fix the issue
@@ -236,6 +282,7 @@ const Ranking: React.FC = () => {
                 name: seriesDetails?.name || `Série ${seriesId}`,
                 poster_path: seriesDetails?.poster_path,
                 overview: seriesDetails?.overview,
+                first_air_date: seriesDetails?.first_air_date,
               },
               users: [{
                 id: item.user_id,
@@ -298,7 +345,7 @@ const Ranking: React.FC = () => {
         poster_path: item.poster_path,
         vote_average: 0, // Watchlist doesn't have a direct rating
         overview: `Na lista de ${item.userCount} usuários`,
-        first_air_date: "",
+        first_air_date: item.first_air_date || "",
         backdrop_path: null,
         genres: [] // Add empty genres array to satisfy the type
       }));
@@ -349,14 +396,21 @@ const Ranking: React.FC = () => {
       if (aggregatedSeries.length === 0) {
         loadAllUserSeries();
       } else {
-        updateSeriesList(aggregatedSeries, "most-watched");
+        updateSeriesList(aggregatedSeries, releasesSeries, "most-watched");
       }
     }
     else if (value === "best-rated") {
       if (aggregatedSeries.length === 0) {
         loadAllUserSeries();
       } else {
-        updateSeriesList(aggregatedSeries, "best-rated");
+        updateSeriesList(aggregatedSeries, releasesSeries, "best-rated");
+      }
+    }
+    else if (value === "releases") {
+      if (aggregatedSeries.length === 0) {
+        loadAllUserSeries();
+      } else {
+        updateSeriesList(aggregatedSeries, releasesSeries, "releases");
       }
     }
     else if (value === "users") {
@@ -369,16 +423,17 @@ const Ranking: React.FC = () => {
 
   // Load initial data when component mounts
  useEffect(() => {
-    if (activeFilter === "most-watched" && aggregatedSeries.length === 0) {
+    if ((activeFilter === "most-watched" || activeFilter === "releases") && aggregatedSeries.length === 0) {
       loadAllUserSeries();
     }
   }, [activeFilter, aggregatedSeries]); // Add activeFilter and aggregatedSeries as dependencies
 
  return (
     <div className="app-container pb-20">
+      <Header title="Ranking" />
 
       <Tabs defaultValue="most-watched" className="w-full" onValueChange={handleTabChange}>
-        <TabsList className="grid grid-cols-3 mb-4">
+        <TabsList className="grid grid-cols-4 mb-4">
           <TabsTrigger value="most-watched" className="flex flex-col items-center text-xs py-2">
             <Eye size={18} className="mb-1" />
             <span>Mais Vistas</span>
@@ -390,6 +445,10 @@ const Ranking: React.FC = () => {
           <TabsTrigger value="watchlist" className="flex flex-col items-center text-xs py-2">
             <List size={18} className="mb-1" />
             <span>Querem Ver</span>
+          </TabsTrigger>
+          <TabsTrigger value="releases" className="flex flex-col items-center text-xs py-2">
+            <CalendarDays size={18} className="mb-1" />
+            <span>Lançamentos</span>
           </TabsTrigger>
         </TabsList>
 
@@ -420,6 +479,9 @@ const Ranking: React.FC = () => {
           {renderSeriesList()}
         </TabsContent>
         <TabsContent value="watchlist" className="mt-0">
+          {renderSeriesList()}
+        </TabsContent>
+        <TabsContent value="releases" className="mt-0">
           {renderSeriesList()}
         </TabsContent>
         <TabsContent value="users" className="mt-0">
@@ -481,6 +543,11 @@ const Ranking: React.FC = () => {
                 )}
                 <span className="text-muted-foreground line-clamp-1">{item.overview}</span>
               </div>
+              {activeFilter === "releases" && item.first_air_date && (
+                <div className="text-xs text-muted-foreground mt-1">
+                  {formatDate(item.first_air_date)}
+                </div>
+              )}
             </div>
           </Link>
         ))}
