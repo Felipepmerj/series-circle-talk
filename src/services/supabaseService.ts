@@ -1,5 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
-import { mapWatchedShow, mapWatchlistItem } from "../utils/dataMappers";
+import { mapWatchedShow, mapWatchlistItem, MappedWatchedShow, MappedWatchlistItem } from "../utils/dataMappers";
 
 // Define proper types to avoid excessive instantiation
 type WatchedShow = {
@@ -376,7 +376,7 @@ export const supabaseService = {
   },
 
   // Get watched series for a user
-  async getWatchedSeries(userId: string): Promise<WatchedShow[]> {
+  async getWatchedSeries(userId: string): Promise<MappedWatchedShow[]> {
     try {
       const { data, error } = await supabase
         .from('watched_shows')
@@ -398,7 +398,7 @@ export const supabaseService = {
   },
 
   // Get watchlist for a user
-  async getWatchlist(userId: string): Promise<WatchlistItem[]> {
+  async getWatchlist(userId: string): Promise<MappedWatchlistItem[]> {
     try {
       const { data, error } = await supabase
         .from('watchlist')
