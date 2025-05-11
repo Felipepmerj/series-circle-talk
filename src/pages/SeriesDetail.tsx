@@ -92,6 +92,8 @@ const SeriesDetail: React.FC = () => {
       );
       
       const allWatchlistItems = await supabaseService.getAllWatchlistItems() || [];
+      console.log('All watchlist items:', allWatchlistItems);
+      console.log('Total watchlist items fetched:', allWatchlistItems.length);
       const seriesWatchlistItems = allWatchlistItems.filter(item => 
         item.tmdb_id === id && item.note && item.public
       );
@@ -110,6 +112,7 @@ const SeriesDetail: React.FC = () => {
         };
       }));
       
+      console.log('Filtered watchlist items count:', seriesWatchlistItems.length);
       // Get user data for each watchlist comment
       const watchlistItemComments = await Promise.all(seriesWatchlistItems.map(async (item) => {
         const userProfile = await supabaseService.getUserProfile(item.user_id);
@@ -122,6 +125,7 @@ const SeriesDetail: React.FC = () => {
           timestamp: item.created_at
         };
       }));
+      console.log('Mapped watchlist comments count:', watchlistItemComments.length);
 
       setWatchlistItems(seriesWatchlistItems); // Store raw watchlist items if needed elsewhere, or map to a specific type
       // Sort comments by date (newest first)
@@ -183,24 +187,42 @@ const SeriesDetail: React.FC = () => {
     }
 
     try {
-      setAddingWatch(true);
+ setAddingWatch(true);
 
-      // Update to use the correct parameter structure expected by the service
-      const result = await supabaseService.addWatchedSeries({
-        userId: user.id,
-        seriesId: Number(id),
-        rating: rating,
-        comment: comment,
-        public: true
-      });
+ if (userRating !== null) {
+ // User is editing an existing rating
+        const watchedItems = await supabaseService.getWatchedSeries(user.id);
+        const watchedItem = watchedItems.find(item => item.seriesId === parseInt(id!, 10)); // Use non-null assertion for id
 
-      if (result) {
-        toast.success("Série adicionada como assistida!");
+ if (watchedItem) {
+          const success = await supabaseService.updateWatchedShow(watchedItem.id, rating, comment, true); // Assuming public: true
+ if (success) {
+ toast.success("Avaliação atualizada!");
+ } else {
+ toast.error("Erro ao atualizar avaliação");
+ }
+ } else {
+ toast.error("Erro ao encontrar item assistido para atualizar");
+ }
+ } else {
+ // User is adding the series as watched for the first time
+        const result = await supabaseService.addWatchedSeries({
+ userId: user.id,
+ seriesId: Number(id),
+ rating: rating,
+ comment: comment,
+ public: true
+ });
+ if (result) {
+ toast.success("Série adicionada como assistida!");
+ } else {
+ toast.error("Erro ao adicionar série como assistida");
+ }
+ }
+
+ // Always refresh data after attempting add or update
         fetchUserWatchData();
         fetchSeriesComments();
-      } else {
-        toast.error("Erro ao adicionar série como assistida");
-      }
     } catch (error) {
       console.error("Error adding series as watched:", error);
       toast.error("Erro ao adicionar série como assistida");
@@ -497,7 +519,7 @@ const SeriesDetail: React.FC = () => {
         </Tabs>
       </div>
 
-      <div className="p-4 flex justify-around">
+      <div className="p-4 flex flex-col sm:flex-row sm:justify-around gap-2">
         {user ? (
           <>
             <Dialog open={showRatingModal} onOpenChange={setShowRatingModal}>
