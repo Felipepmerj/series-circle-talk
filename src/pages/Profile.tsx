@@ -37,16 +37,17 @@ const Profile: React.FC = () => {
         if (profileData) {
           setProfile(profileData);
           
-          // Buscar séries assistidas
+          // Buscar séries assistidas - now uses properly mapped data
           const watched = await supabaseService.getWatchedSeries(currentProfileId);
           const watchedWithDetails = await Promise.all(
             watched.map(async item => {
               try {
+                // series_id is now mapped by our helper method
                 const series = await api.getSeriesById(item.series_id);
                 return series ? {
                   ...series,
                   userRating: item.rating || 0,
-                  userComment: item.comment || ""
+                  userComment: item.comment || "" // comment is mapped from review
                 } : null;
               } catch (error) {
                 console.error(`Erro ao buscar detalhes da série ${item.series_id}:`, error);
@@ -60,10 +61,11 @@ const Profile: React.FC = () => {
           const watchlistWithDetails = await Promise.all(
             watchlist.map(async item => {
               try {
+                // series_id is now mapped by our helper method
                 const series = await api.getSeriesById(item.series_id);
                 return series ? {
                   ...series,
-                  userNote: item.notes
+                  userNote: item.notes // notes is mapped from note
                 } : null;
               } catch (error) {
                 console.error(`Erro ao buscar detalhes da série ${item.series_id}:`, error);

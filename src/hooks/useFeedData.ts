@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { supabaseService } from "../services/supabaseService";
 import { api } from "../services/api";
 import { toast } from "sonner";
+import { mapWatchedShow, mapWatchlistItem } from "../utils/dataMappers";
 
 interface FeedActivity {
   id: string;
@@ -48,7 +49,7 @@ export const useFeedData = () => {
         const safeWatchedShows = Array.isArray(fetchedWatchedShows) ? fetchedWatchedShows : [];
         const safeWatchlistItems = Array.isArray(fetchedWatchlistItems) ? fetchedWatchlistItems : [];
         
-        // Combine both types of items
+        // Combine both types of items with proper type annotations to help TypeScript
         const combined = [
           ...safeWatchedShows.map(item => ({...item, type: 'watched'})),
           ...safeWatchlistItems.map(item => ({...item, type: 'watchlist'}))
@@ -58,10 +59,10 @@ export const useFeedData = () => {
         combined.sort((a, b) => {
           // Handle different timestamp properties based on the item type
           const dateA = new Date(
-            a.type === 'watched' ? a.watched_at || a.created_at : a.created_at
+            a.type === 'watched' ? (a.watched_at || a.created_at) : a.created_at
           ).getTime();
           const dateB = new Date(
-            b.type === 'watched' ? b.watched_at || b.created_at : b.created_at
+            b.type === 'watched' ? (b.watched_at || b.created_at) : b.created_at
           ).getTime();
           return dateB - dateA;
         });

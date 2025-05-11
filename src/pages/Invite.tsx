@@ -54,6 +54,7 @@ const Invite: React.FC = () => {
               const topSeries = await Promise.all(
                 ratedShows.slice(0, 5).map(async (show) => {
                   try {
+                    // Use the series_id property that was added by our mapper
                     const seriesDetails = await api.getSeriesById(show.series_id);
                     return {
                       id: show.series_id,

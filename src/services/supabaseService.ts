@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 
 export const supabaseService = {
@@ -368,7 +367,12 @@ export const supabaseService = {
         return [];
       }
 
-      return data || [];
+      // Map the database fields to fields that matches the rest of app
+      return (data || []).map(show => ({
+        ...show,
+        series_id: parseInt(show.tmdb_id, 10),
+        comment: show.review
+      }));
     } catch (error) {
       console.error('Error in getWatchedSeries:', error);
       return [];
@@ -388,7 +392,12 @@ export const supabaseService = {
         return [];
       }
 
-      return data || [];
+      // Map the database fields to fields that match the rest of app
+      return (data || []).map(item => ({
+        ...item,
+        series_id: parseInt(item.tmdb_id, 10),
+        notes: item.note
+      }));
     } catch (error) {
       console.error('Error in getWatchlist:', error);
       return [];

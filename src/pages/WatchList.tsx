@@ -26,6 +26,7 @@ const WatchList: React.FC = () => {
         const seriesWithDetails = await Promise.all(
           watchlist.map(async item => {
             try {
+              // Use seriesId property that is added by the getWatchlist helper
               return await api.getSeriesById(item.series_id);
             } catch (error) {
               console.error(`Erro ao buscar detalhes da série ${item.series_id}:`, error);

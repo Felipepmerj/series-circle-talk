@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { api } from "../services/api";
@@ -42,6 +41,30 @@ interface Review {
     watchlist: any[];
   };
 }
+
+// Fix for the incorrect parameter type in addToWatchedShows
+export const addToWatchedShows = async (formData: any) => {
+  try {
+    // Here we fix the parameter mismatch by properly mapping the data
+    const result = await supabaseService.addWatchedSeries({
+      userId: formData.user_id,
+      seriesId: formData.series_id,
+      rating: formData.rating,
+      comment: formData.comment,
+      public: true // Default to public
+    });
+    
+    if (result) {
+      toast.success("Série adicionada à sua lista de assistidos!");
+      return true;
+    }
+    return false;
+  } catch (error) {
+    console.error("Erro ao adicionar série:", error);
+    toast.error("Erro ao adicionar série à sua lista");
+    return false;
+  }
+};
 
 const SeriesDetail: React.FC = () => {
   const [series, setSeries] = useState<Series | null>(null);
