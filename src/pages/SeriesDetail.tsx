@@ -35,6 +35,7 @@ interface SeriesComment {
   timestamp: string;
 }
 
+
 const SeriesDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const [series, setSeries] = useState<Series | null>(null);
@@ -48,6 +49,7 @@ const SeriesDetail: React.FC = () => {
   const [userProfiles, setUserProfiles] = useState<any[]>([]);
   const [watchedComments, setWatchedComments] = useState<SeriesComment[]>([]);
   const [watchlistComments, setWatchlistComments] = useState<SeriesComment[]>([]);
+  const [watchlistItems, setWatchlistItems] = useState<any[]>([]); // State for watchlist items
   const [activeTab, setActiveTab] = useState("overview");
   const [loadingComments, setLoadingComments] = useState(false);
   const { user } = useAuth();
@@ -85,10 +87,9 @@ const SeriesDetail: React.FC = () => {
       // Fetch all watched shows for this series
       const allWatchedShows = await supabaseService.getAllWatchedShows() || [];
       const seriesWatchedShows = allWatchedShows.filter(show => 
-        show.tmdb_id === id && show.review && show.public
+ show.tmdb_id === id && show.review && show.public
       );
       
-      // Fetch all watchlist items for this series
       const allWatchlistItems = await supabaseService.getAllWatchlistItems() || [];
       const seriesWatchlistItems = allWatchlistItems.filter(item => 
         item.tmdb_id === id && item.note && item.public
@@ -120,7 +121,8 @@ const SeriesDetail: React.FC = () => {
           timestamp: item.created_at
         };
       }));
-      
+
+      setWatchlistItems(seriesWatchlistItems); // Store raw watchlist items if needed elsewhere, or map to a specific type
       // Sort comments by date (newest first)
       const sortedWatchedComments = watchedShowComments.sort((a, b) => 
         new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
@@ -394,7 +396,7 @@ const SeriesDetail: React.FC = () => {
                       {comment.rating && (
                         <div className="flex items-center">
                           <RatingStars rating={comment.rating} size="small" />
-                          <span className="ml-2 text-xs text-muted-foreground size={Number(comment.rating)}">
+                          <span className="ml-2 text-xs text-muted-foreground" style={{ whiteSpace: 'nowrap' }}>
                             {comment.rating}/10
                           </span>
                         </div>
@@ -416,13 +418,13 @@ const SeriesDetail: React.FC = () => {
           
           <TabsContent value="watchlist" className="mt-4">
             <div className="p-4">
-              <h2 className="text-lg font-semibold mb-2">Usuários interessados em assistir</h2>
+              <h2 className="text-lg font-semibold mb-2">Quem quer assistir</h2>
               
               {loadingComments ? (
                 <div className="flex justify-center py-10">
                   <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-primary"></div>
                 </div>
-              ) : watchlistComments.length > 0 ? (
+              ) : watchlistItems.length > 0 ? (
                 <div className="space-y-4">
                   {watchlistComments.map((comment) => (
                     <div key={comment.id} className="border rounded-md p-3 space-y-2">
@@ -438,7 +440,9 @@ const SeriesDetail: React.FC = () => {
                           {formatDate(comment.timestamp)}
                         </div>
                       </div>
-                      <p className="text-sm">{comment.content}</p>
+                      {comment.content && (
+                        <p className="text-sm">{comment.content}</p>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -519,9 +523,9 @@ const RatingForm: React.FC<RatingFormProps> = ({ onSubmit, initialRating, initia
         <Slider
           id="rating"
           defaultValue={[initialRating || 5]}
-          max={10}
-          min={1}
-          step={1}
+          max={10.0}
+          min={0.0}
+          step={0.1}
           onValueChange={(value) => setRating(value[0])}
         />
         <p className="text-sm text-muted-foreground">
