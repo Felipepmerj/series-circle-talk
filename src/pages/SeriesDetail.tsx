@@ -20,6 +20,7 @@ import {
 import { Slider } from "@/components/ui/slider";
 import { Textarea } from "@/components/ui/textarea";
 import { List } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import BottomNav from "../components/BottomNav";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Eye, MessageCircle, Tv2, Star, Calendar } from "lucide-react";
@@ -267,6 +268,43 @@ const SeriesDetail: React.FC = () => {
     }
   };
 
+  const removeSeriesFromWatched = async () => {
+    if (!user || !id) return;
+
+    try {
+ console.log('removeSeriesFromWatched called');
+      console.log('User ID:', user.id);
+      console.log('Series ID:', id);
+      // Find the watched item for the current series and user
+      const watchedItems = await supabaseService.getWatchedSeries(user.id);
+      console.log('Watched items for user:', watchedItems);
+      const watchedItem = watchedItems.find(item => item.seriesId === parseInt(id, 10));
+      console.log('Found watched item:', watchedItem);
+ if (watchedItem) {
+ console.log('Attempting to remove watched item with ID:', watchedItem.id);
+        try {
+ // Remove the watched item by its ID
+ await supabaseService.deleteWatchedShow(watchedItem.id);
+ console.log('Supabase removal successful for ID:', watchedItem.id);
+ toast.success("Série removida da sua lista de assistidos!");
+        } catch (supabaseError) {
+ console.error("Error during Supabase removal:", supabaseError);
+ toast.error("Erro ao remover série da sua lista de assistidos");
+        }
+        setUserRating(null);
+        setUserComment(null);
+        fetchSeriesComments(); // Refresh comments to remove the user's comment
+      } else {
+        toast.error("Série não encontrada na sua lista de assistidos");
+      }
+    } catch (error) {
+      console.error("Full error object:", error);
+      console.error("Error removing series from watched:", error);
+    } finally {
+      // No specific loading state for removal, but can add if needed
+    }
+  };
+
   const formatDate = (dateString: string) => {
     try {
       const date = new Date(dateString);
@@ -395,7 +433,7 @@ const SeriesDetail: React.FC = () => {
                       </div>
                       {comment.rating && (
                         <div className="flex items-center">
-                          <RatingStars rating={comment.rating} size="small" />
+                          <RatingStars rating={comment.rating} size={16} /> {/* Ensure size is a number */}
                           <span className="ml-2 text-xs text-muted-foreground" style={{ whiteSpace: 'nowrap' }}>
                             {comment.rating}/10
                           </span>
@@ -478,6 +516,19 @@ const SeriesDetail: React.FC = () => {
                 <RatingForm onSubmit={addSeriesAsWatched} initialRating={userRating} initialComment={userComment} loading={addingWatch} />
               </DialogContent>
             </Dialog>
+
+            {userRating !== null && ( // Conditionally render remove watched button
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="destructive">Remover de Assistidos</Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>Remover de Assistidos</AlertDialogHeader>
+                  <AlertDialogDescription>Tem certeza que deseja remover esta série da sua lista de assistidos?</AlertDialogDescription>
+                  <AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction onClick={removeSeriesFromWatched}>Remover</AlertDialogAction></AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
 
             {userWatchlist ? (
               <Button variant="destructive" onClick={removeSeriesFromWatchlist} disabled={addingWatchlist}>
