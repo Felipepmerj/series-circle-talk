@@ -402,17 +402,32 @@ export const supabaseService = {
   async addWatchedSeries(data: {
     userId: string;
     seriesId: number;
-    rating: number;
+    rating: number | null;
     comment: string;
     public: boolean;
   }) {
-    return this.addWatchedShow(
-      data.userId,
-      data.seriesId.toString(),
-      data.rating,
-      data.comment,
-      data.public
-    );
+    try {
+      const { data: result, error } = await supabase
+        .from('watched_shows')
+        .insert([{ 
+          user_id: data.userId, 
+          tmdb_id: data.seriesId.toString(),
+          rating: data.rating,
+          review: data.comment,
+          public: data.public 
+        }])
+        .select();
+
+      if (error) {
+        console.error('Error adding watched show:', error);
+        return null;
+      }
+
+      return result?.[0] ? mapWatchedShow(result[0]) : null;
+    } catch (error) {
+      console.error('Error in addWatchedSeries:', error);
+      return null;
+    }
   },
 
   async removeFromWatchlist(itemId: string) {

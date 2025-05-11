@@ -58,13 +58,15 @@ export const useFeedData = () => {
         // Sort by timestamp (newest first)
         combined.sort((a, b) => {
           // Handle different timestamp properties based on the item type
-          const dateA = new Date(
-            a.type === 'watched' ? (a.watched_at || a.created_at) : a.created_at
-          ).getTime();
-          const dateB = new Date(
-            b.type === 'watched' ? (b.watched_at || b.created_at) : b.created_at
-          ).getTime();
-          return dateB - dateA;
+          const timestampA = a.type === 'watched' 
+            ? (a.watched_at || a.created_at) 
+            : a.created_at;
+            
+          const timestampB = b.type === 'watched'
+            ? (b.watched_at || b.created_at)
+            : b.created_at;
+            
+          return new Date(timestampB).getTime() - new Date(timestampA).getTime();
         });
         
         console.log("Feed hook: Total de itens combinados:", combined.length);

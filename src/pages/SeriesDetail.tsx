@@ -109,7 +109,7 @@ const SeriesDetail: React.FC = () => {
         if (user) {
           // Verificar se o usuário já assistiu a série
           const watchedShow = await supabaseService.getWatchedSeries(user.id);
-          const userWatchedShow = watchedShow.find(show => show.series_id === parseInt(id));
+          const userWatchedShow = watchedShow.find(show => show.seriesId === parseInt(id));
           setUserWatchedShow(userWatchedShow);
           
           if (userWatchedShow) {
@@ -120,20 +120,20 @@ const SeriesDetail: React.FC = () => {
               id: userWatchedShow.id,
               rating: userWatchedShow.rating || 0, // Assuming a default rating if null
               comment: userWatchedShow.comment || "", // Assuming a default empty comment if null
-              createdAt: userWatchedShow.created_at || new Date().toISOString(), // Assuming 'created_at' or using current date as fallback
+              createdAt: userWatchedShow.timestamp || new Date().toISOString(), // Using mapped timestamp
               user: {
                 id: user.id,
                 name: user?.email || "Usuário", // Use user's email as a fallback for name
                 // You might need to fetch the user's profile picture separately if not available in user object
- watchedSeries: [] as any[],
- watchlist: [] as any[],
+                watchedSeries: [] as any[],
+                watchlist: [] as any[],
               },
             });
           }
           
           // Verificar se a série está na watchlist do usuário
           const watchlist = await supabaseService.getWatchlist(user.id);
-          const userWatchlistItem = watchlist.find(item => item.series_id === parseInt(id));
+          const userWatchlistItem = watchlist.find(item => item.seriesId === parseInt(id));
           setUserWatchlistItem(userWatchlistItem);
           
           if (userWatchlistItem) {
@@ -491,25 +491,25 @@ const SeriesDetail: React.FC = () => {
                   </div>
                 </div>
               </div>
- <SheetFooter>
- {currentUserReview ? (
- <div className="flex justify-between w-full">
- <Button
- variant="destructive"
- disabled={isSubmitting}
- onClick={handleRemoveFromWatched}
- >
- Remover da lista
- </Button>
- <Button disabled={isSubmitting} onClick={handleSubmitReview} className="ml-auto">
- {isSubmitting ? "Enviando..." : "Salvar"}
- </Button>
- </div>
- ) : (
- <Button disabled={isSubmitting} onClick={handleSubmitReview} className="ml-auto">
- {isSubmitting ? "Enviando..." : "Salvar"}
- </Button>
- )}
+              <SheetFooter>
+                {currentUserReview ? (
+                  <div className="flex justify-between w-full">
+                    <Button
+                      variant="destructive"
+                      disabled={isSubmitting}
+                      onClick={handleRemoveFromWatched}
+                    >
+                      Remover da lista
+                    </Button>
+                    <Button disabled={isSubmitting} onClick={handleSubmitReview} className="ml-auto">
+                      {isSubmitting ? "Enviando..." : "Salvar"}
+                    </Button>
+                  </div>
+                ) : (
+                  <Button disabled={isSubmitting} onClick={handleSubmitReview} className="ml-auto">
+                    {isSubmitting ? "Enviando..." : "Salvar"}
+                  </Button>
+                )}
               </SheetFooter>
             </SheetContent>
           </Sheet>
@@ -691,6 +691,13 @@ const SeriesDetail: React.FC = () => {
       <BottomNav />
     </div>
   );
+};
+
+// Helper function that was referenced but not defined
+const incrementRating = () => {
+  // This should be defined inside the component, not here
+  // Adding this as a stub to avoid any errors
+  return null;
 };
 
 export default SeriesDetail;

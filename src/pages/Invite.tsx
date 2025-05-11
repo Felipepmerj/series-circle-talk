@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { MessageSquare, Users } from "lucide-react";
@@ -54,19 +53,19 @@ const Invite: React.FC = () => {
               const topSeries = await Promise.all(
                 ratedShows.slice(0, 5).map(async (show) => {
                   try {
-                    // Use the series_id property that was added by our mapper
-                    const seriesDetails = await api.getSeriesById(show.series_id);
+                    // Use the seriesId property that was added by our mapper
+                    const seriesDetails = await api.getSeriesById(show.seriesId);
                     return {
-                      id: show.series_id,
-                      title: seriesDetails?.name || `Série ${show.series_id}`,
+                      id: show.seriesId,
+                      title: seriesDetails?.name || `Série ${show.seriesId}`,
                       poster_path: seriesDetails?.poster_path,
                       rating: show.rating || 0
                     };
                   } catch (error) {
-                    console.error(`Erro ao buscar detalhes da série ${show.series_id}:`, error);
+                    console.error(`Erro ao buscar detalhes da série ${show.seriesId}:`, error);
                     return {
-                      id: show.series_id,
-                      title: `Série ${show.series_id}`,
+                      id: show.seriesId,
+                      title: `Série ${show.seriesId}`,
                       poster_path: null,
                       rating: show.rating || 0
                     };

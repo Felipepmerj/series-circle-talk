@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { Grid, List } from "lucide-react";
@@ -42,15 +41,15 @@ const Profile: React.FC = () => {
           const watchedWithDetails = await Promise.all(
             watched.map(async item => {
               try {
-                // series_id is now mapped by our helper method
-                const series = await api.getSeriesById(item.series_id);
+                // seriesId is now mapped by our helper method
+                const series = await api.getSeriesById(item.seriesId);
                 return series ? {
                   ...series,
                   userRating: item.rating || 0,
                   userComment: item.comment || "" // comment is mapped from review
                 } : null;
               } catch (error) {
-                console.error(`Erro ao buscar detalhes da série ${item.series_id}:`, error);
+                console.error(`Erro ao buscar detalhes da série ${item.seriesId}:`, error);
                 return null;
               }
             })
@@ -61,14 +60,14 @@ const Profile: React.FC = () => {
           const watchlistWithDetails = await Promise.all(
             watchlist.map(async item => {
               try {
-                // series_id is now mapped by our helper method
-                const series = await api.getSeriesById(item.series_id);
+                // seriesId is now mapped by our helper method
+                const series = await api.getSeriesById(item.seriesId);
                 return series ? {
                   ...series,
                   userNote: item.notes // notes is mapped from note
                 } : null;
               } catch (error) {
-                console.error(`Erro ao buscar detalhes da série ${item.series_id}:`, error);
+                console.error(`Erro ao buscar detalhes da série ${item.seriesId}:`, error);
                 return null;
               }
             })
