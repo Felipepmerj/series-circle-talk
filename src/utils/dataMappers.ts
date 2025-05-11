@@ -3,8 +3,28 @@
  * Utility functions to map between database field names and application field names
  */
 
+// Define proper return types for consistency
+export interface MappedWatchedShow {
+  id: string;
+  userId: string;
+  seriesId: number;
+  rating: number | null;
+  comment: string | null;
+  timestamp: string;
+  public: boolean;
+}
+
+export interface MappedWatchlistItem {
+  id: string;
+  userId: string;
+  seriesId: number;
+  notes: string | null;
+  timestamp: string;
+  public: boolean;
+}
+
 // Map watched_shows database fields to application fields
-export const mapWatchedShow = (item: any) => ({
+export const mapWatchedShow = (item: any): MappedWatchedShow => ({
   id: item.id,
   userId: item.user_id,
   seriesId: parseInt(item.tmdb_id, 10),
@@ -15,7 +35,7 @@ export const mapWatchedShow = (item: any) => ({
 });
 
 // Map watchlist database fields to application fields
-export const mapWatchlistItem = (item: any) => ({
+export const mapWatchlistItem = (item: any): MappedWatchlistItem => ({
   id: item.id,
   userId: item.user_id,
   seriesId: parseInt(item.tmdb_id, 10),

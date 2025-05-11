@@ -173,7 +173,7 @@ const Index: React.FC = () => {
             userId: item.user_id,
             seriesId: parseInt(item.tmdb_id, 10),
             type: isWatched ? 'review' : 'added-to-watchlist' as 'review' | 'added-to-watchlist',
-            timestamp: item.created_at || item.watched_at || new Date().toISOString(),
+            timestamp: item.type === 'watched' ? (item.watched_at || item.created_at || new Date().toISOString()) : (item.created_at || new Date().toISOString()),
             reviewId: isWatched ? item.id : undefined,
             watchlistItemId: !isWatched ? item.id : undefined,
             seriesName: seriesData?.name,

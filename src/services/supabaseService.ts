@@ -1,6 +1,26 @@
 import { supabase } from "@/integrations/supabase/client";
 import { mapWatchedShow, mapWatchlistItem } from "../utils/dataMappers";
 
+// Define proper types to avoid excessive instantiation
+type WatchedShow = {
+  id: string;
+  userId: string;
+  seriesId: number;
+  rating: number | null;
+  comment: string | null;
+  timestamp: string;
+  public: boolean;
+};
+
+type WatchlistItem = {
+  id: string;
+  userId: string;
+  seriesId: number;
+  notes: string | null;
+  timestamp: string;
+  public: boolean;
+};
+
 export const supabaseService = {
   async getAllWatchedShows() {
     try {
@@ -118,7 +138,7 @@ export const supabaseService = {
     }
   },
   
-   async getAllProfiles() {
+  async getAllProfiles() {
     try {
       const { data, error } = await supabase
         .from('profiles')
@@ -158,7 +178,7 @@ export const supabaseService = {
 
   async deleteWatchedShow(watchedShowId: string) {
     try {
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('watched_shows')
         .delete()
         .eq('id', watchedShowId);
@@ -177,7 +197,7 @@ export const supabaseService = {
 
   async deleteWatchlistItem(watchlistItemId: string) {
     try {
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('watchlist')
         .delete()
         .eq('id', watchlistItemId);
@@ -281,7 +301,7 @@ export const supabaseService = {
   // Update comment
   async updateComment(commentId: string, content: string) {
     try {
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('comments')
         .update({ content })
         .eq('id', commentId)
@@ -356,7 +376,7 @@ export const supabaseService = {
   },
 
   // Get watched series for a user
-  async getWatchedSeries(userId: string) {
+  async getWatchedSeries(userId: string): Promise<WatchedShow[]> {
     try {
       const { data, error } = await supabase
         .from('watched_shows')
@@ -378,7 +398,7 @@ export const supabaseService = {
   },
 
   // Get watchlist for a user
-  async getWatchlist(userId: string) {
+  async getWatchlist(userId: string): Promise<WatchlistItem[]> {
     try {
       const { data, error } = await supabase
         .from('watchlist')
@@ -405,7 +425,7 @@ export const supabaseService = {
     rating: number | null;
     comment: string;
     public: boolean;
-  }) {
+  }): Promise<WatchedShow | null> {
     try {
       const { data: result, error } = await supabase
         .from('watched_shows')
