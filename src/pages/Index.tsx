@@ -76,12 +76,12 @@ const Index: React.FC = () => {
         
         // Sort combined items by timestamp (newest first)
         combined.sort((a, b) => {
-          const timestampA = a.type === 'watched' 
-            ? (a.watched_at || a.created_at || "") 
-            : (a.created_at || "");
-            
+          const timestampA = a.type === 'watched'
+            ? ('watched_at' in a && a.watched_at ? a.watched_at : a.created_at || "")
+            : (b.created_at || "");
+
           const timestampB = b.type === 'watched'
-            ? (b.watched_at || b.created_at || "")
+            ? ('watched_at' in b && b.watched_at ? b.watched_at : b.created_at || "")
             : (b.created_at || "");
             
           return new Date(timestampB).getTime() - new Date(timestampA).getTime();

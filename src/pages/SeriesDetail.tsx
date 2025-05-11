@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import { toast } from "sonner";
 import { api } from "../services/api";
 import { Series } from "../types/Series";
@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/dialog";
 import { Slider } from "@/components/ui/slider";
 import { Textarea } from "@/components/ui/textarea";
+import { List } from "lucide-react";
 import BottomNav from "../components/BottomNav";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Eye, MessageCircle, Tv2, Star, Calendar } from "lucide-react";
@@ -393,7 +394,7 @@ const SeriesDetail: React.FC = () => {
                       {comment.rating && (
                         <div className="flex items-center">
                           <RatingStars rating={comment.rating} size="small" />
-                          <span className="ml-2 text-xs text-muted-foreground">
+                          <span className="ml-2 text-xs text-muted-foreground size={Number(comment.rating)}">
                             {comment.rating}/10
                           </span>
                         </div>

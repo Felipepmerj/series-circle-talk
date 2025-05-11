@@ -58,15 +58,21 @@ export const useFeedData = () => {
         combined.sort((a, b) => {
           // Handle different timestamp properties based on the item type
           const timestampA = a.type === 'watched' 
-            ? (a.watched_at || a.created_at) 
-            : a.created_at;
-            
+ ? ('watched_at' in a ? a.watched_at : a.created_at)
+ : a.created_at;
+
           const timestampB = b.type === 'watched'
-            ? (b.watched_at || b.created_at)
-            : b.created_at;
-            
+ ? ('watched_at' in b ? b.watched_at : b.created_at)
+ : b.created_at;
+
           // Use a nullish coalescing operator to handle undefined values safely
-          const timeA = timestampA ?? '';
+ const timeA = timestampA
+ ? timestampA
+ : // Provide a fallback if timestampA is null or undefined
+ // Depending on your data, a very old date or the current time might be appropriate.
+ // Using the current time as a fallback to avoid sorting issues with nulls.
+ // Adjust this fallback as needed.
+ new Date().toISOString();
           const timeB = timestampB ?? '';
           
           return new Date(timeB).getTime() - new Date(timeA).getTime();
