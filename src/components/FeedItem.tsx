@@ -75,7 +75,19 @@ const FeedItem: React.FC<FeedItemProps> = ({
             setComment(reviewDetails.comment);
             
             // Fetch comments for this review
-            await fetchComments(reviewId);
+            await fetchComments(reviewId, 'watched_show_id');
+          }
+        }
+        
+        // If it's a watchlist item, get additional details and comments
+        if (type === 'added-to-watchlist' && watchlistItemId) {
+          const watchlistDetails = await supabaseService.getWatchlistItemDetails(watchlistItemId);
+          
+          if (watchlistDetails) {
+            setComment(watchlistDetails.note);
+            
+            // Fetch comments for this watchlist item
+            await fetchComments(watchlistItemId, 'watchlist_item_id');
           }
         }
         
@@ -97,10 +109,11 @@ const FeedItem: React.FC<FeedItemProps> = ({
     fetchData();
   }, [userId, seriesId, type, reviewId, watchlistItemId, username]);
 
-  const fetchComments = async (watchedShowId: string) => {
+  const fetchComments = async (itemId: string, idField: 'watched_show_id' | 'watchlist_item_id') => {
     setLoadingComments(true);
     try {
-      const commentsList = await supabaseService.getComments(watchedShowId);
+      // Get comments for either watched show or watchlist item
+      const commentsList = await supabaseService.getComments(itemId, idField);
       
       // Fetch user profiles for each comment
       const commentsWithProfiles = await Promise.all(
@@ -132,16 +145,28 @@ const FeedItem: React.FC<FeedItemProps> = ({
     setSubmitting(true);
     try {
       // Save comment to Supabase
-      const savedComment = await supabaseService.addComment({
+      const commentData: any = {
         content: newComment,
-        watched_show_id: reviewId,
         user_id: user.id,
         public: true
-      });
+      };
       
-      if (savedComment && reviewId) {
+      // Set the appropriate ID field based on item type
+      if (type === 'review' && reviewId) {
+        commentData.watched_show_id = reviewId;
+      } else if (type === 'added-to-watchlist' && watchlistItemId) {
+        commentData.watchlist_item_id = watchlistItemId;
+      }
+      
+      const savedComment = await supabaseService.addComment(commentData);
+      
+      if (savedComment) {
         // Refresh comments list
-        await fetchComments(reviewId);
+        if (type === 'review' && reviewId) {
+          await fetchComments(reviewId, 'watched_show_id');
+        } else if (type === 'added-to-watchlist' && watchlistItemId) {
+          await fetchComments(watchlistItemId, 'watchlist_item_id');
+        }
       }
       
       toast.success("Comentário adicionado com sucesso!");
@@ -165,8 +190,13 @@ const FeedItem: React.FC<FeedItemProps> = ({
     
     try {
       const updated = await supabaseService.updateComment(commentId, editedComment);
-      if (updated && reviewId) {
-        await fetchComments(reviewId);
+      if (updated) {
+        if (type === 'review' && reviewId) {
+          await fetchComments(reviewId, 'watched_show_id');
+        } else if (type === 'added-to-watchlist' && watchlistItemId) {
+          await fetchComments(watchlistItemId, 'watchlist_item_id');
+        }
+        
         toast.success("Comentário atualizado com sucesso!");
         setEditingCommentId(null);
       }
@@ -179,8 +209,13 @@ const FeedItem: React.FC<FeedItemProps> = ({
   const handleDeleteComment = async (commentId: string) => {
     try {
       const deleted = await supabaseService.deleteComment(commentId);
-      if (deleted && reviewId) {
-        await fetchComments(reviewId);
+      if (deleted) {
+        if (type === 'review' && reviewId) {
+          await fetchComments(reviewId, 'watched_show_id');
+        } else if (type === 'added-to-watchlist' && watchlistItemId) {
+          await fetchComments(watchlistItemId, 'watchlist_item_id');
+        }
+        
         toast.success("Comentário removido com sucesso!");
       }
     } catch (error) {
@@ -238,9 +273,12 @@ const FeedItem: React.FC<FeedItemProps> = ({
             )}
             
             {type === 'added-to-watchlist' && (
-              <p className="mt-1 text-sm">
-                Adicionou à lista "Quero assistir"
-              </p>
+              <>
+                <p className="mt-1 text-sm">
+                  Adicionou à lista "Quero assistir"
+                </p>
+                {comment && <p className="mt-2 text-sm italic">"{comment}"</p>}
+              </>
             )}
           </div>
         </div>
