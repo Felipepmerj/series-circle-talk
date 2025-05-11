@@ -202,13 +202,11 @@ const SeriesDetail: React.FC = () => {
     setIsSubmitting(true);
     try {
       const watchedSeries = {
-        user_id: user.id,
-        series_id: series.id,
-        title: series.name,
-        poster_path: series.poster_path,
+        userId: user.id,
+        seriesId: series.id, 
         rating: userRating,
         comment: userComment,
-        watched_at: new Date().toISOString()
+        public: true // Set to public by default
       };
       
       // Salvar review no Supabase

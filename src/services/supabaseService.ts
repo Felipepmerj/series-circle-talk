@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { mapWatchedShow, mapWatchlistItem } from "../utils/dataMappers";
 
 export const supabaseService = {
   async getAllWatchedShows() {
@@ -354,6 +355,7 @@ export const supabaseService = {
     return this.getAllProfiles();
   },
 
+  // Get watched series for a user
   async getWatchedSeries(userId: string) {
     try {
       const { data, error } = await supabase
@@ -368,17 +370,14 @@ export const supabaseService = {
       }
 
       // Map the database fields to fields that matches the rest of app
-      return (data || []).map(show => ({
-        ...show,
-        series_id: parseInt(show.tmdb_id, 10),
-        comment: show.review
-      }));
+      return (data || []).map(show => mapWatchedShow(show));
     } catch (error) {
       console.error('Error in getWatchedSeries:', error);
       return [];
     }
   },
 
+  // Get watchlist for a user
   async getWatchlist(userId: string) {
     try {
       const { data, error } = await supabase
@@ -393,11 +392,7 @@ export const supabaseService = {
       }
 
       // Map the database fields to fields that match the rest of app
-      return (data || []).map(item => ({
-        ...item,
-        series_id: parseInt(item.tmdb_id, 10),
-        notes: item.note
-      }));
+      return (data || []).map(item => mapWatchlistItem(item));
     } catch (error) {
       console.error('Error in getWatchlist:', error);
       return [];

@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import Header from "../components/Header";
@@ -27,9 +26,9 @@ const WatchList: React.FC = () => {
           watchlist.map(async item => {
             try {
               // Use seriesId property that is added by the getWatchlist helper
-              return await api.getSeriesById(item.series_id);
+              return await api.getSeriesById(item.seriesId);
             } catch (error) {
-              console.error(`Erro ao buscar detalhes da série ${item.series_id}:`, error);
+              console.error(`Erro ao buscar detalhes da série ${item.seriesId}:`, error);
               return null;
             }
           })

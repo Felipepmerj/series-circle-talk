@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Filter, Loader } from "lucide-react";
@@ -81,7 +80,7 @@ const Index: React.FC = () => {
             a.type === 'watched' ? (a.watched_at || a.created_at || "") : (a.created_at || "")
           ).getTime();
           const dateB = new Date(
-            b.type === 'watched' ? (b.watched_at || b.created_at || "") : (b.created_at || "")
+            b.type === 'watched' ? (b.watched_at || b.created_at || "") : (a.created_at || "")
           ).getTime();
           return dateB - dateA;
         });
