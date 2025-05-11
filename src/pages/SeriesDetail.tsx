@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -15,12 +16,23 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog"
-import { Slider } from "@/components/ui/slider"
-import { Textarea } from "@/components/ui/textarea"
+} from "@/components/ui/dialog";
+import { Slider } from "@/components/ui/slider";
+import { Textarea } from "@/components/ui/textarea";
 import BottomNav from "../components/BottomNav";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Eye, MessageCircle, Tv2 } from "lucide-react";
+import { Eye, MessageCircle, Tv2, Star, Calendar } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
+interface SeriesComment {
+  id: string;
+  userId: string;
+  username: string;
+  profilePic: string;
+  content: string;
+  rating?: number;
+  timestamp: string;
+}
 
 const SeriesDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -33,6 +45,10 @@ const SeriesDetail: React.FC = () => {
   const [userWatchlist, setUserWatchlist] = useState<boolean>(false);
   const [addingWatchlist, setAddingWatchlist] = useState(false);
   const [userProfiles, setUserProfiles] = useState<any[]>([]);
+  const [watchedComments, setWatchedComments] = useState<SeriesComment[]>([]);
+  const [watchlistComments, setWatchlistComments] = useState<SeriesComment[]>([]);
+  const [activeTab, setActiveTab] = useState("overview");
+  const [loadingComments, setLoadingComments] = useState(false);
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -57,7 +73,70 @@ const SeriesDetail: React.FC = () => {
   useEffect(() => {
     fetchUserWatchData();
     fetchAllUserProfiles();
+    fetchSeriesComments();
   }, [user, id]);
+
+  const fetchSeriesComments = async () => {
+    if (!id) return;
+    
+    setLoadingComments(true);
+    try {
+      // Fetch all watched shows for this series
+      const allWatchedShows = await supabaseService.getAllWatchedShows() || [];
+      const seriesWatchedShows = allWatchedShows.filter(show => 
+        show.tmdb_id === id && show.review && show.public
+      );
+      
+      // Fetch all watchlist items for this series
+      const allWatchlistItems = await supabaseService.getAllWatchlistItems() || [];
+      const seriesWatchlistItems = allWatchlistItems.filter(item => 
+        item.tmdb_id === id && item.note && item.public
+      );
+      
+      // Get user data for each watched show comment
+      const watchedShowComments = await Promise.all(seriesWatchedShows.map(async (show) => {
+        const userProfile = await supabaseService.getUserProfile(show.user_id);
+        return {
+          id: show.id,
+          userId: show.user_id,
+          username: userProfile?.name || "Usuário",
+          profilePic: userProfile?.profile_pic || `https://api.dicebear.com/7.x/initials/svg?seed=${userProfile?.name || show.user_id}`,
+          content: show.review || "",
+          rating: show.rating || undefined,
+          timestamp: show.watched_at || show.created_at
+        };
+      }));
+      
+      // Get user data for each watchlist comment
+      const watchlistItemComments = await Promise.all(seriesWatchlistItems.map(async (item) => {
+        const userProfile = await supabaseService.getUserProfile(item.user_id);
+        return {
+          id: item.id,
+          userId: item.user_id,
+          username: userProfile?.name || "Usuário",
+          profilePic: userProfile?.profile_pic || `https://api.dicebear.com/7.x/initials/svg?seed=${userProfile?.name || item.user_id}`,
+          content: item.note || "",
+          timestamp: item.created_at
+        };
+      }));
+      
+      // Sort comments by date (newest first)
+      const sortedWatchedComments = watchedShowComments.sort((a, b) => 
+        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      );
+      
+      const sortedWatchlistComments = watchlistItemComments.sort((a, b) => 
+        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      );
+      
+      setWatchedComments(sortedWatchedComments);
+      setWatchlistComments(sortedWatchlistComments);
+    } catch (error) {
+      console.error("Error fetching series comments:", error);
+    } finally {
+      setLoadingComments(false);
+    }
+  };
 
   const fetchUserWatchData = async () => {
     if (!user || !id) return;
@@ -114,6 +193,7 @@ const SeriesDetail: React.FC = () => {
       if (result) {
         toast.success("Série adicionada como assistida!");
         fetchUserWatchData();
+        fetchSeriesComments();
       } else {
         toast.error("Erro ao adicionar série como assistida");
       }
@@ -149,6 +229,7 @@ const SeriesDetail: React.FC = () => {
       });
       setUserWatchlist(true);
       toast.success("Série adicionada à sua lista!");
+      fetchSeriesComments();
     } catch (error) {
       console.error("Error adding series to watchlist:", error);
       toast.error("Erro ao adicionar série à sua lista");
@@ -171,6 +252,7 @@ const SeriesDetail: React.FC = () => {
         await supabaseService.removeFromWatchlist(watchlistItem.id);
         setUserWatchlist(false);
         toast.success("Série removida da sua lista!");
+        fetchSeriesComments();
       } else {
         toast.error("Série não encontrada na sua lista");
       }
@@ -179,6 +261,21 @@ const SeriesDetail: React.FC = () => {
       toast.error("Erro ao remover série da sua lista");
     } finally {
       setAddingWatchlist(false);
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    try {
+      const date = new Date(dateString);
+      return new Intl.DateTimeFormat('pt-BR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      }).format(date);
+    } catch (e) {
+      return dateString;
     }
   };
 
@@ -208,46 +305,153 @@ const SeriesDetail: React.FC = () => {
           <h1 className="text-3xl font-bold text-white">{series.name}</h1>
         </div>
       </div>
-
-      <div className="p-4">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h2 className="text-lg font-semibold">Visão geral</h2>
-          </div>
-          <div>
-            {userRating !== null && (
-              <div className="flex items-center">
-                <RatingStars rating={userRating} />
-                <span className="ml-2 text-sm text-muted-foreground">
-                  Sua avaliação
-                </span>
+      
+      <div className="mt-4">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid grid-cols-3 w-full">
+            <TabsTrigger value="overview">
+              <Tv2 className="w-4 h-4 mr-1" />
+              Visão geral
+            </TabsTrigger>
+            <TabsTrigger value="reviews">
+              <Star className="w-4 h-4 mr-1" />
+              Avaliações
+            </TabsTrigger>
+            <TabsTrigger value="watchlist">
+              <List className="w-4 h-4 mr-1" />
+              Querem assistir
+            </TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="overview" className="mt-4">
+            <div className="p-4">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h2 className="text-lg font-semibold">Visão geral</h2>
+                </div>
+                <div>
+                  {userRating !== null && (
+                    <div className="flex items-center">
+                      <RatingStars rating={userRating} />
+                      <span className="ml-2 text-sm text-muted-foreground">
+                        Sua avaliação
+                      </span>
+                    </div>
+                  )}
+                </div>
               </div>
-            )}
-          </div>
-        </div>
-        <p className="text-sm text-muted-foreground">{series.overview}</p>
-      </div>
+              <p className="text-sm text-muted-foreground">{series.overview}</p>
+            </div>
 
-      <div className="p-4">
-        <h2 className="text-lg font-semibold mb-2">Detalhes</h2>
-        <div className="grid grid-cols-2 gap-2 text-sm">
-          <div>
-            <span className="font-medium">Título original:</span>{" "}
-            {series.original_name}
-          </div>
-          <div>
-            <span className="font-medium">Data de lançamento:</span>{" "}
-            {new Date(series.first_air_date).toLocaleDateString()}
-          </div>
-          <div>
-            <span className="font-medium">Gêneros:</span>{" "}
-            {series.genres.map((genre) => genre.name).join(", ")}
-          </div>
-          <div>
-            <span className="font-medium">Avaliação média:</span>{" "}
-            {series.vote_average.toFixed(1)}
-          </div>
-        </div>
+            <div className="p-4">
+              <h2 className="text-lg font-semibold mb-2">Detalhes</h2>
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <div>
+                  <span className="font-medium">Título original:</span>{" "}
+                  {series.original_name}
+                </div>
+                <div>
+                  <span className="font-medium">Data de lançamento:</span>{" "}
+                  {new Date(series.first_air_date).toLocaleDateString()}
+                </div>
+                <div>
+                  <span className="font-medium">Gêneros:</span>{" "}
+                  {series.genres.map((genre) => genre.name).join(", ")}
+                </div>
+                <div>
+                  <span className="font-medium">Avaliação média:</span>{" "}
+                  {series.vote_average.toFixed(1)}
+                </div>
+              </div>
+            </div>
+          </TabsContent>
+          
+          <TabsContent value="reviews" className="mt-4">
+            <div className="p-4">
+              <h2 className="text-lg font-semibold mb-2">Avaliações dos usuários</h2>
+              
+              {loadingComments ? (
+                <div className="flex justify-center py-10">
+                  <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-primary"></div>
+                </div>
+              ) : watchedComments.length > 0 ? (
+                <div className="space-y-4">
+                  {watchedComments.map((comment) => (
+                    <div key={comment.id} className="border rounded-md p-3 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Link to={`/profile/${comment.userId}`} className="flex items-center gap-2">
+                          <Avatar className="h-6 w-6">
+                            <AvatarImage src={comment.profilePic} alt={comment.username} />
+                            <AvatarFallback>{comment.username.charAt(0)}</AvatarFallback>
+                          </Avatar>
+                          <span className="text-sm font-medium">{comment.username}</span>
+                        </Link>
+                        <div className="text-xs text-muted-foreground">
+                          {formatDate(comment.timestamp)}
+                        </div>
+                      </div>
+                      {comment.rating && (
+                        <div className="flex items-center">
+                          <RatingStars rating={comment.rating} size="small" />
+                          <span className="ml-2 text-xs text-muted-foreground">
+                            {comment.rating}/10
+                          </span>
+                        </div>
+                      )}
+                      <p className="text-sm">{comment.content}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="py-8 text-center">
+                  <MessageCircle className="mx-auto h-10 w-10 text-muted-foreground opacity-20" />
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    Nenhuma avaliação para esta série ainda
+                  </p>
+                </div>
+              )}
+            </div>
+          </TabsContent>
+          
+          <TabsContent value="watchlist" className="mt-4">
+            <div className="p-4">
+              <h2 className="text-lg font-semibold mb-2">Usuários interessados em assistir</h2>
+              
+              {loadingComments ? (
+                <div className="flex justify-center py-10">
+                  <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-primary"></div>
+                </div>
+              ) : watchlistComments.length > 0 ? (
+                <div className="space-y-4">
+                  {watchlistComments.map((comment) => (
+                    <div key={comment.id} className="border rounded-md p-3 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Link to={`/profile/${comment.userId}`} className="flex items-center gap-2">
+                          <Avatar className="h-6 w-6">
+                            <AvatarImage src={comment.profilePic} alt={comment.username} />
+                            <AvatarFallback>{comment.username.charAt(0)}</AvatarFallback>
+                          </Avatar>
+                          <span className="text-sm font-medium">{comment.username}</span>
+                        </Link>
+                        <div className="text-xs text-muted-foreground">
+                          {formatDate(comment.timestamp)}
+                        </div>
+                      </div>
+                      <p className="text-sm">{comment.content}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="py-8 text-center">
+                  <List className="mx-auto h-10 w-10 text-muted-foreground opacity-20" />
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    Nenhum usuário adicionou esta série à sua lista ainda
+                  </p>
+                </div>
+              )}
+            </div>
+          </TabsContent>
+        </Tabs>
       </div>
 
       <div className="p-4 flex justify-around">

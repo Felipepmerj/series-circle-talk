@@ -10,6 +10,7 @@ import BottomNav from "../components/BottomNav";
 import { Link } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
 
 interface RankingEntry {
   userId: string;
@@ -32,7 +33,7 @@ const Ranking: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [topUsers, setTopUsers] = useState<RankingEntry[]>([]);
   const [topSeries, setTopSeries] = useState<{id: number, name: string, avgRating: number, posterPath: string, watchCount: number}[]>([]);
-  const [topRatedSeries, setTopRatedSeries] = useState<{id: number, name: string, avgRating: number, posterPath: string}[]>([]);
+  const [topRatedSeries, setTopRatedSeries] = useState<{id: number, name: string, avgRating: number, posterPath: string, watchCount: number}[]>([]);
   const [mostWantedSeries, setMostWantedSeries] = useState<{id: number, name: string, posterPath: string, wantCount: number}[]>([]);
   const [recentSeries, setRecentSeries] = useState<{id: number, name: string, posterPath: string, releaseDate: string, watchCount: number}[]>([]);
   const [userPosition, setUserPosition] = useState<number | null>(null);
@@ -170,11 +171,11 @@ const Ranking: React.FC = () => {
       
       // Sort by watch count (descending) for most watched
       const sortedByWatchCount = [...validSeries].sort((a, b) => b.watchCount - a.watchCount);
-      setTopSeries(sortedByWatchCount.slice(0, 5));
+      setTopSeries(sortedByWatchCount);
       
       // Sort by rating (descending) for best rated
       const sortedByRating = [...validSeries].sort((a, b) => b.avgRating - a.avgRating);
-      setTopRatedSeries(sortedByRating.slice(0, 5));
+      setTopRatedSeries(sortedByRating);
       
       // Get unique series IDs for watchlist items
       const uniqueWatchlistIds = [...new Set(allWatchlistSeries.map(item => item.seriesId))];
@@ -211,7 +212,7 @@ const Ranking: React.FC = () => {
       }[];
       
       const sortedByWantCount = validWatchlistSeries.sort((a, b) => b.wantCount - a.wantCount);
-      setMostWantedSeries(sortedByWantCount.slice(0, 5));
+      setMostWantedSeries(sortedByWantCount);
       
       // Sort by release date (newest first) for recent releases
       const sortedByReleaseDate = [...validSeries]
@@ -220,7 +221,6 @@ const Ranking: React.FC = () => {
           if (!b.firstAirDate) return -1;
           return new Date(b.firstAirDate).getTime() - new Date(a.firstAirDate).getTime();
         })
-        .slice(0, 5)
         .map(item => ({
           id: item.id,
           name: item.name,
@@ -326,9 +326,13 @@ const Ranking: React.FC = () => {
                     <div className="ml-3 flex-1">
                       <h3 className="font-medium text-sm">{series.name}</h3>
                       <div className="flex items-center mt-1">
-                        <div className="flex items-center text-xs">
+                        <div className="flex items-center text-xs mr-3">
                           <Star className="h-3 w-3 text-yellow-500 mr-1" />
                           <span>{series.avgRating.toFixed(1)}</span>
+                        </div>
+                        <div className="flex items-center text-xs">
+                          <Eye className="h-3 w-3 mr-1" />
+                          <span>{series.watchCount} usuário{series.watchCount !== 1 ? 's' : ''}</span>
                         </div>
                       </div>
                     </div>

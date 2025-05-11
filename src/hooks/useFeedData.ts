@@ -3,7 +3,6 @@ import { useState, useEffect } from "react";
 import { supabaseService } from "../services/supabaseService";
 import { api } from "../services/api";
 import { toast } from "sonner";
-import { mapWatchedShow, mapWatchlistItem } from "../utils/dataMappers";
 
 interface FeedActivity {
   id: string;
@@ -66,7 +65,11 @@ export const useFeedData = () => {
             ? (b.watched_at || b.created_at)
             : b.created_at;
             
-          return new Date(timestampB).getTime() - new Date(timestampA).getTime();
+          // Use a nullish coalescing operator to handle undefined values safely
+          const timeA = timestampA ?? '';
+          const timeB = timestampB ?? '';
+          
+          return new Date(timeB).getTime() - new Date(timeA).getTime();
         });
         
         console.log("Feed hook: Total de itens combinados:", combined.length);
