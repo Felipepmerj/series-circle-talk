@@ -75,8 +75,10 @@ export const api = {
   // Get latest series (popular or on the air)
   getLatestSeries: async (page: number): Promise<Series[]> => {
     try {
-      // Using the 'popular' endpoint as an example for latest/trending
-      const url = `${BASE_URL}/tv/popular?api_key=${API_KEY}&language=pt-BR&page=${page}`;
+      // Using the 'discover' endpoint sorted by first air date in descending order
+      const today = new Date();
+      const currentDateFormatted = today.toISOString().split('T')[0]; // Format YYYY-MM-DD
+      const url = `${BASE_URL}/discover/tv?api_key=${API_KEY}&language=pt-BR&sort_by=first_air_date.desc&page=${page}&air_date.lte=${currentDateFormatted}`;
       const response = await fetch(url);
       const data = await response.json();
 
