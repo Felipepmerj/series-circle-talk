@@ -15,10 +15,11 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import { Slider } from "@/components/ui/slider";
 import { Textarea } from "@/components/ui/textarea";
-import { List } from "lucide-react";
+import { List, Edit } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import BottomNav from "../components/BottomNav";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -46,7 +47,10 @@ const SeriesDetail: React.FC = () => {
   const [addingWatch, setAddingWatch] = useState(false);
   const [showRatingModal, setShowRatingModal] = useState(false);
   const [showWatchlistModal, setShowWatchlistModal] = useState(false);
+  const [showEditNoteModal, setShowEditNoteModal] = useState(false);
   const [watchlistNote, setWatchlistNote] = useState("");
+  const [editingNote, setEditingNote] = useState("");
+  const [currentWatchlistItem, setCurrentWatchlistItem] = useState<any>(null);
   const [userWatchlist, setUserWatchlist] = useState<boolean>(false);
   const [addingWatchlist, setAddingWatchlist] = useState(false);
   const [userProfiles, setUserProfiles] = useState<any[]>([]);
@@ -424,6 +428,30 @@ const SeriesDetail: React.FC = () => {
     }
   };
 
+  const handleEditNote = async (item: any) => {
+    setCurrentWatchlistItem(item);
+    setEditingNote(item.content || "");
+    setShowEditNoteModal(true);
+  };
+
+  const handleUpdateNote = async () => {
+    if (!currentWatchlistItem || !user) return;
+
+    try {
+      const updated = await supabaseService.updateWatchlistNote(currentWatchlistItem.id, editingNote);
+      if (updated) {
+        toast.success("Nota atualizada com sucesso!");
+        await fetchSeriesComments();
+        setShowEditNoteModal(false);
+      } else {
+        toast.error("Erro ao atualizar nota");
+      }
+    } catch (error) {
+      console.error("Error updating note:", error);
+      toast.error("Erro ao atualizar nota");
+    }
+  };
+
   if (loading || !series) {
     return (
       <div className="app-container">
@@ -576,43 +604,45 @@ const SeriesDetail: React.FC = () => {
           </TabsContent>
           
           <TabsContent value="watchlist" className="mt-4">
-            <div className="p-4">
-              <h2 className="text-lg font-semibold mb-2">Quem quer assistir</h2>
-              
+            <div className="space-y-4 mt-4">
               {loadingComments ? (
-                <div className="flex justify-center py-10">
-                  <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-primary"></div>
+                <div className="text-center py-8">
+                  <span className="loading loading-ring loading-lg"></span>
                 </div>
               ) : watchlistComments.length > 0 ? (
-                <div className="space-y-4">
-                  {watchlistComments.map((item) => (
-                    <div key={item.id} className="border rounded-md p-3">
-                      <div className="flex items-center justify-between">
-                        <Link to={`/profile/${item.userId}`} className="flex items-center gap-2">
-                          <Avatar className="h-6 w-6">
-                            <AvatarImage src={item.profilePic} alt={item.username} />
-                            <AvatarFallback>{item.username.charAt(0)}</AvatarFallback>
-                          </Avatar>
-                          <span className="text-sm font-medium">{item.username}</span>
-                        </Link>
-                        <div className="text-xs text-muted-foreground">
-                          Adicionado em {formatDate(item.timestamp)}
+                watchlistComments.map((item) => (
+                  <div key={item.id} className="bg-white rounded-lg shadow p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center">
+                        <Avatar>
+                          <AvatarImage src={item.profilePic} alt={item.username} />
+                          <AvatarFallback>{item.username[0]}</AvatarFallback>
+                        </Avatar>
+                        <div className="ml-3">
+                          <p className="font-medium">{item.username}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {new Date(item.timestamp).toLocaleDateString()}
+                          </p>
                         </div>
                       </div>
-                      {item.content && (
-                        <p className="text-sm mt-2 text-muted-foreground">
-                          "{item.content}"
-                        </p>
+                      {user && user.id === item.userId && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleEditNote(item)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
                       )}
                     </div>
-                  ))}
-                </div>
+                    {item.content && (
+                      <p className="mt-2 text-sm">{item.content}</p>
+                    )}
+                  </div>
+                ))
               ) : (
-                <div className="py-8 text-center">
-                  <List className="mx-auto h-10 w-10 text-muted-foreground opacity-20" />
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    Nenhum usuário adicionou esta série à sua lista ainda
-                  </p>
+                <div className="text-center py-8">
+                  <p className="text-muted-foreground">Ninguém adicionou esta série à lista ainda.</p>
                 </div>
               )}
             </div>
@@ -695,6 +725,36 @@ const SeriesDetail: React.FC = () => {
           </Button>
         )}
       </div>
+
+      <Dialog open={showEditNoteModal} onOpenChange={setShowEditNoteModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar nota</DialogTitle>
+            <DialogDescription>
+              Atualize sua nota sobre a série.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <Textarea
+              value={editingNote}
+              onChange={(e) => setEditingNote(e.target.value)}
+              placeholder="Escreva sua nota aqui..."
+              className="min-h-[100px]"
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowEditNoteModal(false)}
+            >
+              Cancelar
+            </Button>
+            <Button onClick={handleUpdateNote}>
+              Salvar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <BottomNav />
     </div>
