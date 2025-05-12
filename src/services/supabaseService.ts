@@ -24,17 +24,22 @@ type WatchlistItem = {
 export const supabaseService = {
   async getAllWatchedShows() {
     try {
-      const { data, error } = await supabase
+      const { data: shows, error: showsError } = await supabase
         .from('watched_shows')
-        .select('*')
+        .select('*, comments(created_at)')
         .order('watched_at', { ascending: false });
 
-      if (error) {
-        console.error('Error fetching watched shows:', error);
+      if (showsError) {
+        console.error('Error fetching watched shows:', showsError);
         return null;
       }
 
-      return data || [];
+      return shows.map(show => ({
+        ...show,
+        last_activity: show.comments?.length > 0 
+          ? Math.max(...show.comments.map((c: any) => new Date(c.created_at).getTime()))
+          : new Date(show.watched_at || show.created_at).getTime()
+      }));
     } catch (error) {
       console.error('Error in getAllWatchedShows:', error);
       return null;
@@ -63,17 +68,22 @@ export const supabaseService = {
 
   async getAllWatchlistItems() {
     try {
-      const { data, error } = await supabase
+      const { data: items, error: itemsError } = await supabase
         .from('watchlist')
-        .select('*')
+        .select('*, comments(created_at)')
         .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error('Error fetching watchlist items:', error);
+      if (itemsError) {
+        console.error('Error fetching watchlist items:', itemsError);
         return null;
       }
 
-      return data || [];
+      return items.map(item => ({
+        ...item,
+        last_activity: item.comments?.length > 0 
+          ? Math.max(...item.comments.map((c: any) => new Date(c.created_at).getTime()))
+          : new Date(item.created_at).getTime()
+      }));
     } catch (error) {
       console.error('Error in getAllWatchlistItems:', error);
       return null;
