@@ -24,6 +24,7 @@ import BottomNav from "../components/BottomNav";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Eye, MessageCircle, Tv2, Star, Calendar } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { supabase } from "@/integrations/supabase/client";
 
 interface SeriesComment {
   id: string;
@@ -80,6 +81,46 @@ const SeriesDetail: React.FC = () => {
     fetchUserWatchData();
     fetchAllUserProfiles();
     fetchSeriesComments();
+
+    // Inscrever-se nas mudanças da tabela watchlist
+    const watchlistSubscription = supabase
+      .channel('watchlist_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'watchlist'
+        },
+        (payload) => {
+          console.log('Mudança na watchlist:', payload);
+          fetchSeriesComments();
+        }
+      )
+      .subscribe();
+
+    // Inscrever-se nas mudanças da tabela watched_shows
+    const watchedShowsSubscription = supabase
+      .channel('watched_shows_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'watched_shows'
+        },
+        (payload) => {
+          console.log('Mudança nos shows assistidos:', payload);
+          fetchSeriesComments();
+        }
+      )
+      .subscribe();
+
+    // Cleanup das inscrições
+    return () => {
+      watchlistSubscription.unsubscribe();
+      watchedShowsSubscription.unsubscribe();
+    };
   }, [user, id]);
 
   const fetchSeriesComments = async () => {
@@ -221,48 +262,45 @@ const SeriesDetail: React.FC = () => {
     }
 
     try {
- setAddingWatch(true);
-
- if (userRating !== null) {
- // User is editing an existing rating
+      setAddingWatch(true);
+      if (userRating !== null) {
         const watchedItems = await supabaseService.getWatchedSeries(user.id);
-        const watchedItem = watchedItems.find(item => item.seriesId === parseInt(id!, 10)); // Use non-null assertion for id
+        const watchedItem = watchedItems.find(item => item.seriesId === parseInt(id!, 10));
 
- if (watchedItem) {
-          const success = await supabaseService.updateWatchedShow(watchedItem.id, rating, comment, true); // Assuming public: true
- if (success) {
- toast.success("Avaliação atualizada!");
- } else {
- toast.error("Erro ao atualizar avaliação");
- }
- } else {
- toast.error("Erro ao encontrar item assistido para atualizar");
- }
- } else {
- // User is adding the series as watched for the first time
+        if (watchedItem) {
+          const success = await supabaseService.updateWatchedShow(watchedItem.id, rating, comment, true);
+          if (success) {
+            toast.success("Avaliação atualizada!");
+          } else {
+            toast.error("Erro ao atualizar avaliação");
+          }
+        }
+      } else {
         const result = await supabaseService.addWatchedSeries({
- userId: user.id,
- seriesId: Number(id),
- rating: rating,
- comment: comment,
- public: true
- });
- if (result) {
- toast.success("Série adicionada como assistida!");
- } else {
- toast.error("Erro ao adicionar série como assistida");
- }
- }
+          userId: user.id,
+          seriesId: Number(id),
+          rating: rating,
+          comment: comment,
+          public: true
+        });
+        if (result) {
+          toast.success("Série adicionada como assistida!");
+        } else {
+          toast.error("Erro ao adicionar série como assistida");
+        }
+      }
 
- // Always refresh data after attempting add or update
-        fetchUserWatchData();
-        fetchSeriesComments();
+      // Atualizar dados imediatamente
+      await Promise.all([
+        fetchUserWatchData(),
+        fetchSeriesComments()
+      ]);
+      setShowRatingModal(false);
     } catch (error) {
       console.error("Error adding series as watched:", error);
       toast.error("Erro ao adicionar série como assistida");
     } finally {
       setAddingWatch(false);
-      setShowRatingModal(false);
     }
   };
 
@@ -291,7 +329,12 @@ const SeriesDetail: React.FC = () => {
       setWatchlistNote("");
       setShowWatchlistModal(false);
       toast.success("Série adicionada à sua lista!");
-      fetchSeriesComments();
+      
+      // Atualizar dados imediatamente
+      await Promise.all([
+        fetchSeriesComments(),
+        fetchUserWatchData()
+      ]);
     } catch (error) {
       console.error("Error adding series to watchlist:", error);
       toast.error("Erro ao adicionar série à sua lista");
@@ -305,16 +348,19 @@ const SeriesDetail: React.FC = () => {
 
     try {
       setAddingWatchlist(true);
-      // Fetch watchlist to get the item ID
       const watchlist = await supabaseService.getWatchlist(user.id);
       const watchlistItem = watchlist.find(item => item.seriesId === parseInt(id, 10));
 
       if (watchlistItem) {
-        // Remove from watchlist using the item ID
         await supabaseService.removeFromWatchlist(watchlistItem.id);
         setUserWatchlist(false);
         toast.success("Série removida da sua lista!");
-        fetchSeriesComments();
+        
+        // Atualizar dados imediatamente
+        await Promise.all([
+          fetchSeriesComments(),
+          fetchUserWatchData()
+        ]);
       } else {
         toast.error("Série não encontrada na sua lista");
       }
