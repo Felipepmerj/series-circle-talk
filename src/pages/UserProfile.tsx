@@ -15,6 +15,7 @@ import { useAuth } from "../hooks/useAuth";
 import { supabaseService } from "../services/supabaseService";
 import Header from "../components/Header";
 import BottomNav from "../components/BottomNav";
+import ImageCropper from "../components/ImageCropper";
 
 const profileSchema = z.object({
   name: z.string().min(2, { message: "Nome deve ter pelo menos 2 caracteres" }),
@@ -28,6 +29,8 @@ const UserProfile = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [showCropper, setShowCropper] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   const form = useForm<z.infer<typeof profileSchema>>({
     resolver: zodResolver(profileSchema),
@@ -85,14 +88,26 @@ const UserProfile = () => {
     }
   };
 
-  const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (!event.target.files || event.target.files.length === 0) {
+      return;
+    }
+    
+    const file = event.target.files[0];
+    setSelectedFile(file);
+    setShowCropper(true);
+  };
+
+  const handleCropComplete = async (croppedImage: Blob) => {
+    if (!user) return;
+    
     try {
-      if (!event.target.files || event.target.files.length === 0 || !user) {
-        return;
-      }
-      
       setIsUploading(true);
-      const file = event.target.files[0];
+      
+      // Converter o Blob para File
+      const file = new File([croppedImage], 'profile-picture.jpg', {
+        type: 'image/jpeg',
+      });
       
       const publicUrl = await supabaseService.uploadAvatar(user.id, file);
         
@@ -104,7 +119,7 @@ const UserProfile = () => {
           profile_pic: publicUrl
         });
         
-        toast.success("Avatar enviado com sucesso!");
+        toast.success("Avatar atualizado com sucesso!");
       }
       
     } catch (error) {
@@ -112,6 +127,7 @@ const UserProfile = () => {
       toast.error("Erro ao enviar sua imagem. Tente novamente.");
     } finally {
       setIsUploading(false);
+      setSelectedFile(null);
     }
   };
 
@@ -169,7 +185,7 @@ const UserProfile = () => {
                     id="avatar-upload" 
                     type="file" 
                     className="hidden" 
-                    onChange={handleAvatarUpload} 
+                    onChange={handleFileSelect} 
                     accept="image/*" 
                     disabled={isUploading}
                   />
@@ -217,6 +233,19 @@ const UserProfile = () => {
           </CardFooter>
         </Card>
       </main>
+      
+      {selectedFile && (
+        <ImageCropper
+          open={showCropper}
+          onClose={() => {
+            setShowCropper(false);
+            setSelectedFile(null);
+          }}
+          onCropComplete={handleCropComplete}
+          imageFile={selectedFile}
+        />
+      )}
+      
       <BottomNav />
     </div>
   );
