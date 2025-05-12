@@ -1,4 +1,3 @@
-
 import React from "react";
 import Header from "../components/Header";
 import BottomNav from "../components/BottomNav";
@@ -19,6 +18,11 @@ const Feed: React.FC = () => {
     loadMoreItems
   } = useFeedData();
 
+  const handleCommentAdded = () => {
+    // Recarregar o feed do início
+    window.location.reload();
+  };
+
   return (
     <div className="app-container pb-20">
       <Header title="Feed de Atividades" />
@@ -32,6 +36,7 @@ const Feed: React.FC = () => {
             allActivitiesProcessed={allActivitiesProcessed}
             loadingMore={loadingMore}
             onLoadMore={loadMoreItems}
+            onCommentAdded={handleCommentAdded}
           />
         ) : initialLoadComplete ? (
           <EmptyState itemsExist={combinedItems.length > 0} />
