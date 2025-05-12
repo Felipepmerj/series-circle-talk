@@ -1,30 +1,52 @@
+const CACHE_NAME = 'series-circle-talk-cache-v1';
 
-const CACHE_NAME = 'filmes-series-cache-v1';
-const urlsToCache = [
-  '/',
-  '/index.html',
-  '/manifest.json',
-  '/lovable-uploads/7eb20063-8cd2-429b-98de-431b924b356a.png'
-];
-
+// Adiciona um ouvinte para o evento de instalação do service worker
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then((cache) => {
-        return cache.addAll(urlsToCache);
-      })
   );
 });
 
+// Adiciona um ouvinte para o evento de ativação do service worker
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys().then((cacheNames) => {
+      return Promise.all(
+        cacheNames.map((cacheName) => {
+          // Remove qualquer cache antigo que não seja o atual
+          if (cacheName !== CACHE_NAME) {
+            return caches.delete(cacheName);
+          }
+        })
+      );
+    })
+  );
+});
+
+// Intercepta as requisições da rede e implementa a estratégia de cache
 self.addEventListener('fetch', (event) => {
   event.respondWith(
-    caches.match(event.request)
+    fetch(event.request)
       .then((response) => {
-        // Cache hit - return response
-        if (response) {
+        // Verifica se a resposta da rede é válida
+        if (!response || response.status !== 200 || response.type !== 'basic') {
           return response;
         }
-        return fetch(event.request);
+
+        // Clona a resposta, pois ela só pode ser consumida uma vez
+        const responseToCache = response.clone();
+
+        // Armazena a nova resposta no cache
+        caches.open(CACHE_NAME)
+          .then((cache) => {
+            cache.put(event.request, responseToCache);
+          });
+
+        return response;
+      })
+      .catch(() => {
+        // Se a requisição falhar, tenta recuperar do cache
+        return caches.match(event.request);
       })
   );
 });
