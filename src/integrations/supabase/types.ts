@@ -17,6 +17,7 @@ export type Database = {
           public: boolean | null
           user_id: string | null
           watched_show_id: string | null
+          watchlist_item_id: string | null
         }
         Insert: {
           content: string
@@ -25,6 +26,7 @@ export type Database = {
           public?: boolean | null
           user_id?: string | null
           watched_show_id?: string | null
+          watchlist_item_id?: string | null
         }
         Update: {
           content?: string
@@ -33,6 +35,7 @@ export type Database = {
           public?: boolean | null
           user_id?: string | null
           watched_show_id?: string | null
+          watchlist_item_id?: string | null
         }
         Relationships: [
           {
@@ -42,6 +45,13 @@ export type Database = {
             referencedRelation: "watched_shows"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "comments_watchlist_item_id_fkey"
+            columns: ["watchlist_item_id"]
+            isOneToOne: false
+            referencedRelation: "watchlist"
+            referencedColumns: ["id"]
+          }
         ]
       }
       friendships: {
