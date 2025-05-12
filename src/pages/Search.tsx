@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { SearchIcon } from "lucide-react";
 import Header from "../components/Header";
@@ -166,7 +165,7 @@ const Search: React.FC = () => {
       
       {/* Latest Series */}
       <div className="mt-8">
-        <h2 className="text-xl font-bold mb-4 px-4">Lançamentos</h2> {/* Added px-4 for padding */}
+        <h2 className="text-xl font-bold mb-4 px-4">Séries Populares</h2> {/* Added px-4 for padding */}
         <div className="bg-white shadow-sm rounded-lg overflow-hidden">
           {latestSeries.length > 0 ? (
             latestSeries.map((series) => (
