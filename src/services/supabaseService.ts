@@ -220,31 +220,18 @@ export const supabaseService = {
     idField: 'watched_show_id' | 'watchlist_item_id' = 'watched_show_id'
   ) {
     try {
-      // Specify the return type explicitly to help TypeScript
-      interface CommentData {
- content: string;
- created_at: string;
- id: string;
- user_id: string | null;
- watched_show_id?: string | null;
- watchlist_item_id?: string | null;
-      }
       const { data, error } = await supabase
         .from('comments')
-        // Select specific fields if possible, or narrow the type if '*' is too broad
-        // For simplicity and to potentially resolve deep type issues,
-        // we explicitly cast the expected return type here.
-        // This might require defining a specific Comment type if needed elsewhere.
         .select('*')
- .select('id, created_at, content, user_id, watched_show_id, watchlist_item_id') // Select specific fields
- .eq(idField, itemId)
+        .filter(idField, 'eq', itemId)
         .order('created_at', { ascending: false });
 
       if (error) {
         console.error('Error fetching comments:', error);
         return [];
       }
- return data as CommentData[] || []; // Use the defined CommentData type
+
+      return data || [];
     } catch (error) {
       console.error('Error in getComments:', error);
       return [];
@@ -517,6 +504,27 @@ export const supabaseService = {
       return urlData.publicUrl;
     } catch (error) {
       console.error('Error in uploadAvatar:', error);
+      return null;
+    }
+  },
+
+  // Update watchlist note
+  async updateWatchlistNote(itemId: string, note: string) {
+    try {
+      const { data, error } = await supabase
+        .from('watchlist')
+        .update({ note: note })
+        .eq('id', itemId)
+        .select();
+
+      if (error) {
+        console.error('Error updating watchlist note:', error);
+        return null;
+      }
+
+      return data?.[0] || null;
+    } catch (error) {
+      console.error('Error in updateWatchlistNote:', error);
       return null;
     }
   }
