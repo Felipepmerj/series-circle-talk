@@ -1,4 +1,3 @@
-
 import React from "react";
 import FeedItem from "../FeedItem";
 import { Button } from "@/components/ui/button";
@@ -21,13 +20,15 @@ interface ActivityListProps {
   allActivitiesProcessed: boolean;
   loadingMore: boolean;
   onLoadMore: () => void;
+  onCommentAdded: () => void;
 }
 
 const ActivityList: React.FC<ActivityListProps> = ({
   activities,
   allActivitiesProcessed,
   loadingMore,
-  onLoadMore
+  onLoadMore,
+  onCommentAdded
 }) => {
   return (
     <>
@@ -43,6 +44,7 @@ const ActivityList: React.FC<ActivityListProps> = ({
             watchlistItemId={activity.watchlistItemId}
             username={activity.username}
             seriesName={activity.seriesName}
+            onCommentAdded={onCommentAdded}
           />
         ))}
       </div>
