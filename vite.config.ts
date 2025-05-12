@@ -15,5 +15,19 @@ export default defineConfig(({ mode }) => ({
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
+    dedupe: ['react-image-crop']
   },
+  optimizeDeps: {
+    include: ['react-image-crop']
+  },
+  build: {
+    rollupOptions: {
+      external: ['react-image-crop'],
+      output: {
+        globals: {
+          'react-image-crop': 'ReactCrop'
+        }
+      }
+    }
+  }
 }));
