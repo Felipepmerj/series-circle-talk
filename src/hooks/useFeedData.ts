@@ -15,7 +15,7 @@ interface FeedActivity {
   username?: string;
 }
 
-const ITEMS_PER_PAGE = 5;
+const ITEMS_PER_PAGE = 10;
 
 export const useFeedData = () => {
   const [activities, setActivities] = useState<FeedActivity[]>([]);
