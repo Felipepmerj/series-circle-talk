@@ -691,12 +691,12 @@ const SeriesDetail: React.FC = () => {
               <Dialog open={showWatchlistModal} onOpenChange={setShowWatchlistModal}>
                 <DialogTrigger asChild>
                   <Button variant="secondary" disabled={addingWatchlist}>
-                    Adicionar à lista
+                    Adicionar à lista de interesse
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-[425px]">
                   <DialogHeader>
-                    <DialogTitle>Adicionar à Lista</DialogTitle>
+                    <DialogTitle>Adicionar à Lista de Interesse</DialogTitle>
                     <DialogDescription>
                       Adicione um comentário sobre por que você quer assistir esta série.
                     </DialogDescription>
@@ -712,7 +712,7 @@ const SeriesDetail: React.FC = () => {
                       />
                     </div>
                     <Button onClick={() => addSeriesToWatchlist(watchlistNote)} disabled={addingWatchlist}>
-                      {addingWatchlist ? "Adicionando..." : "Adicionar à lista"}
+                      {addingWatchlist ? "Adicionando..." : "Adicionar à lista de interesse"}
                     </Button>
                   </div>
                 </DialogContent>
