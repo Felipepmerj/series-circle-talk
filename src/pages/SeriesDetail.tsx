@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { toast } from "sonner";
@@ -45,6 +44,8 @@ const SeriesDetail: React.FC = () => {
   const [userComment, setUserComment] = useState<string | null>(null);
   const [addingWatch, setAddingWatch] = useState(false);
   const [showRatingModal, setShowRatingModal] = useState(false);
+  const [showWatchlistModal, setShowWatchlistModal] = useState(false);
+  const [watchlistNote, setWatchlistNote] = useState("");
   const [userWatchlist, setUserWatchlist] = useState<boolean>(false);
   const [addingWatchlist, setAddingWatchlist] = useState(false);
   const [userProfiles, setUserProfiles] = useState<any[]>([]);
@@ -53,6 +54,7 @@ const SeriesDetail: React.FC = () => {
   const [watchlistItems, setWatchlistItems] = useState<any[]>([]); // State for watchlist items
   const [activeTab, setActiveTab] = useState("overview");
   const [loadingComments, setLoadingComments] = useState(false);
+  const [averageRating, setAverageRating] = useState<{ rating: number; count: number }>({ rating: 0, count: 0 });
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -85,37 +87,74 @@ const SeriesDetail: React.FC = () => {
     
     setLoadingComments(true);
     try {
-      // Fetch all watched shows for this series
+      // Buscar todos os shows assistidos
       const allWatchedShows = await supabaseService.getAllWatchedShows() || [];
-      const seriesWatchedShows = allWatchedShows.filter(show => 
- show.tmdb_id === id && show.review && show.public
+      console.log('Todos os shows assistidos:', allWatchedShows);
+      
+      // Filtrar shows desta série
+      const seriesWatchedShows = allWatchedShows.filter(show => {
+        console.log('Comparando show:', show);
+        console.log('tmdb_id do show:', show.tmdb_id, typeof show.tmdb_id);
+        console.log('id da série atual:', id, typeof id);
+        return show.tmdb_id.toString() === id.toString();
+      });
+      
+      console.log('Shows assistidos desta série:', seriesWatchedShows);
+      
+      // Calcular média das avaliações
+      const showsWithRating = seriesWatchedShows.filter(show => 
+        show.rating !== null && show.rating !== undefined
       );
       
-      const allWatchlistItems = await supabaseService.getAllWatchlistItems() || [];
-      console.log('All watchlist items:', allWatchlistItems);
-      console.log('Total watchlist items fetched:', allWatchlistItems.length);
-      const seriesWatchlistItems = allWatchlistItems.filter(item => 
-        item.tmdb_id === id && item.note && item.public
-      );
+      const totalRating = showsWithRating.reduce((acc, show) => acc + (show.rating || 0), 0);
+      const averageRatingValue = showsWithRating.length > 0 ? totalRating / showsWithRating.length : 0;
       
-      // Get user data for each watched show comment
+      setAverageRating({
+        rating: averageRatingValue,
+        count: showsWithRating.length
+      });
+
+      // Buscar dados dos usuários que assistiram
       const watchedShowComments = await Promise.all(seriesWatchedShows.map(async (show) => {
         const userProfile = await supabaseService.getUserProfile(show.user_id);
+        console.log('Dados do usuário que assistiu:', userProfile);
         return {
           id: show.id,
           userId: show.user_id,
           username: userProfile?.name || "Usuário",
           profilePic: userProfile?.profile_pic || `https://api.dicebear.com/7.x/initials/svg?seed=${userProfile?.name || show.user_id}`,
           content: show.review || "",
-          rating: show.rating || undefined,
+          rating: show.rating,
           timestamp: show.watched_at || show.created_at
         };
       }));
+
+      // Ordenar por data mais recente
+      const sortedWatchedComments = watchedShowComments.sort((a, b) => 
+        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      );
+
+      console.log('Shows assistidos com dados dos usuários:', sortedWatchedComments);
+      setWatchedComments(sortedWatchedComments);
+
+      // Buscar todos os itens da watchlist
+      const allWatchlistItems = await supabaseService.getAllWatchlistItems() || [];
+      console.log('Todos os itens da watchlist:', allWatchlistItems);
       
-      console.log('Filtered watchlist items count:', seriesWatchlistItems.length);
-      // Get user data for each watchlist comment
-      const watchlistItemComments = await Promise.all(seriesWatchlistItems.map(async (item) => {
+      // Filtrar apenas os itens desta série
+      const seriesWatchlistItems = allWatchlistItems.filter(item => {
+        console.log('Comparando item:', item);
+        console.log('tmdb_id do item:', item.tmdb_id, typeof item.tmdb_id);
+        console.log('id da série atual:', id, typeof id);
+        return item.tmdb_id.toString() === id.toString();
+      });
+      
+      console.log('Itens da watchlist desta série:', seriesWatchlistItems);
+      
+      // Buscar dados dos usuários da watchlist
+      const watchlistWithUserData = await Promise.all(seriesWatchlistItems.map(async (item) => {
         const userProfile = await supabaseService.getUserProfile(item.user_id);
+        console.log('Dados do usuário da watchlist:', userProfile);
         return {
           id: item.id,
           userId: item.user_id,
@@ -125,22 +164,17 @@ const SeriesDetail: React.FC = () => {
           timestamp: item.created_at
         };
       }));
-      console.log('Mapped watchlist comments count:', watchlistItemComments.length);
+      
+      // Ordenar por data mais recente
+      const sortedWatchlistItems = watchlistWithUserData.sort((a, b) => 
+        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      );
+      
+      console.log('Watchlist com dados dos usuários:', sortedWatchlistItems);
+      setWatchlistComments(sortedWatchlistItems);
 
-      setWatchlistItems(seriesWatchlistItems); // Store raw watchlist items if needed elsewhere, or map to a specific type
-      // Sort comments by date (newest first)
-      const sortedWatchedComments = watchedShowComments.sort((a, b) => 
-        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-      );
-      
-      const sortedWatchlistComments = watchlistItemComments.sort((a, b) => 
-        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-      );
-      
-      setWatchedComments(sortedWatchedComments);
-      setWatchlistComments(sortedWatchlistComments);
     } catch (error) {
-      console.error("Error fetching series comments:", error);
+      console.error("Error fetching series data:", error);
     } finally {
       setLoadingComments(false);
     }
@@ -232,7 +266,7 @@ const SeriesDetail: React.FC = () => {
     }
   };
 
-  const addSeriesToWatchlist = async () => {
+  const addSeriesToWatchlist = async (note: string) => {
     if (!user) {
       toast.error("Você precisa estar logado para adicionar uma série à watchlist");
       navigate("/auth");
@@ -251,9 +285,11 @@ const SeriesDetail: React.FC = () => {
         series_id: series.id,
         title: series.name,
         poster_path: series.poster_path,
-        notes: ""
+        notes: note
       });
       setUserWatchlist(true);
+      setWatchlistNote("");
+      setShowWatchlistModal(false);
       toast.success("Série adicionada à sua lista!");
       fetchSeriesComments();
     } catch (error) {
@@ -378,7 +414,7 @@ const SeriesDetail: React.FC = () => {
             </TabsTrigger>
             <TabsTrigger value="reviews">
               <Star className="w-4 h-4 mr-1" />
-              Avaliações
+              Quem assistiu
             </TabsTrigger>
             <TabsTrigger value="watchlist">
               <List className="w-4 h-4 mr-1" />
@@ -388,42 +424,59 @@ const SeriesDetail: React.FC = () => {
           
           <TabsContent value="overview" className="mt-4">
             <div className="p-4">
-              <div className="flex items-center justify-between mb-4">
+              <div className="mb-4">
                 <div>
-                  <h2 className="text-lg font-semibold">Visão geral</h2>
-                </div>
-                <div>
-                  {userRating !== null && (
-                    <div className="flex items-center">
-                      <RatingStars rating={userRating} />
-                      <span className="ml-2 text-sm text-muted-foreground">
-                        Sua avaliação
-                      </span>
-                    </div>
-                  )}
+                  <h2 className="text-lg font-semibold mb-4">Visão geral</h2>
+                  
+                  <div className="space-y-3 mb-4">
+                    {averageRating.count > 0 && (
+                      <div className="flex items-center">
+                        <div className="min-w-24 text-sm text-muted-foreground">Média geral:</div>
+                        <div className="flex items-center">
+                          <RatingStars rating={averageRating.rating} />
+                          <span className="ml-2 text-sm text-muted-foreground">
+                            {averageRating.rating.toFixed(1)}/10 ({averageRating.count} {averageRating.count === 1 ? 'avaliação' : 'avaliações'})
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {userRating !== null && (
+                      <div className="flex items-center">
+                        <div className="min-w-24 text-sm text-muted-foreground">Sua nota:</div>
+                        <div className="flex items-center">
+                          <RatingStars rating={userRating} />
+                          <span className="ml-2 text-sm text-muted-foreground">
+                            {userRating.toFixed(1)}/10
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <p className="text-sm text-muted-foreground">{series.overview}</p>
                 </div>
               </div>
-              <p className="text-sm text-muted-foreground">{series.overview}</p>
-            </div>
 
-            <div className="p-4">
-              <h2 className="text-lg font-semibold mb-2">Detalhes</h2>
-              <div className="grid grid-cols-2 gap-2 text-sm">
-                <div>
-                  <span className="font-medium">Título original:</span>{" "}
-                  {series.original_name}
-                </div>
-                <div>
-                  <span className="font-medium">Data de lançamento:</span>{" "}
-                  {new Date(series.first_air_date).toLocaleDateString()}
-                </div>
-                <div>
-                  <span className="font-medium">Gêneros:</span>{" "}
-                  {series.genres.map((genre) => genre.name).join(", ")}
-                </div>
-                <div>
-                  <span className="font-medium">Avaliação média:</span>{" "}
-                  {series.vote_average.toFixed(1)}
+              <div className="p-4">
+                <h2 className="text-lg font-semibold mb-2">Detalhes</h2>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div>
+                    <span className="font-medium">Título original:</span>{" "}
+                    {series.original_name}
+                  </div>
+                  <div>
+                    <span className="font-medium">Data de lançamento:</span>{" "}
+                    {new Date(series.first_air_date).toLocaleDateString()}
+                  </div>
+                  <div>
+                    <span className="font-medium">Gêneros:</span>{" "}
+                    {series.genres.map((genre) => genre.name).join(", ")}
+                  </div>
+                  <div>
+                    <span className="font-medium">Avaliação média:</span>{" "}
+                    {series.vote_average.toFixed(1)}
+                  </div>
                 </div>
               </div>
             </div>
@@ -431,7 +484,7 @@ const SeriesDetail: React.FC = () => {
           
           <TabsContent value="reviews" className="mt-4">
             <div className="p-4">
-              <h2 className="text-lg font-semibold mb-2">Avaliações dos usuários</h2>
+              <h2 className="text-lg font-semibold mb-2">Quem assistiu</h2>
               
               {loadingComments ? (
                 <div className="flex justify-center py-10">
@@ -484,24 +537,26 @@ const SeriesDetail: React.FC = () => {
                 <div className="flex justify-center py-10">
                   <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-primary"></div>
                 </div>
-              ) : watchlistItems.length > 0 ? (
+              ) : watchlistComments.length > 0 ? (
                 <div className="space-y-4">
-                  {watchlistComments.map((comment) => (
-                    <div key={comment.id} className="border rounded-md p-3 space-y-2">
+                  {watchlistComments.map((item) => (
+                    <div key={item.id} className="border rounded-md p-3">
                       <div className="flex items-center justify-between">
-                        <Link to={`/profile/${comment.userId}`} className="flex items-center gap-2">
+                        <Link to={`/profile/${item.userId}`} className="flex items-center gap-2">
                           <Avatar className="h-6 w-6">
-                            <AvatarImage src={comment.profilePic} alt={comment.username} />
-                            <AvatarFallback>{comment.username.charAt(0)}</AvatarFallback>
+                            <AvatarImage src={item.profilePic} alt={item.username} />
+                            <AvatarFallback>{item.username.charAt(0)}</AvatarFallback>
                           </Avatar>
-                          <span className="text-sm font-medium">{comment.username}</span>
+                          <span className="text-sm font-medium">{item.username}</span>
                         </Link>
                         <div className="text-xs text-muted-foreground">
-                          {formatDate(comment.timestamp)}
+                          Adicionado em {formatDate(item.timestamp)}
                         </div>
                       </div>
-                      {comment.content && (
-                        <p className="text-sm">{comment.content}</p>
+                      {item.content && (
+                        <p className="text-sm mt-2 text-muted-foreground">
+                          "{item.content}"
+                        </p>
                       )}
                     </div>
                   ))}
@@ -539,7 +594,7 @@ const SeriesDetail: React.FC = () => {
               </DialogContent>
             </Dialog>
 
-            {userRating !== null && ( // Conditionally render remove watched button
+            {userRating !== null && (
               <AlertDialog>
                 <AlertDialogTrigger asChild>
                   <Button variant="destructive">Remover de Assistidos</Button>
@@ -557,9 +612,35 @@ const SeriesDetail: React.FC = () => {
                 Remover da lista
               </Button>
             ) : (
-              <Button variant="secondary" onClick={addSeriesToWatchlist} disabled={addingWatchlist}>
-                Adicionar à lista
-              </Button>
+              <Dialog open={showWatchlistModal} onOpenChange={setShowWatchlistModal}>
+                <DialogTrigger asChild>
+                  <Button variant="secondary" disabled={addingWatchlist}>
+                    Adicionar à lista
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-[425px]">
+                  <DialogHeader>
+                    <DialogTitle>Adicionar à Lista</DialogTitle>
+                    <DialogDescription>
+                      Adicione um comentário sobre por que você quer assistir esta série.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="grid gap-4 py-4">
+                    <div className="grid gap-2">
+                      <label htmlFor="note">Comentário:</label>
+                      <Textarea
+                        id="note"
+                        placeholder="Por que você quer assistir esta série?"
+                        value={watchlistNote}
+                        onChange={(e) => setWatchlistNote(e.target.value)}
+                      />
+                    </div>
+                    <Button onClick={() => addSeriesToWatchlist(watchlistNote)} disabled={addingWatchlist}>
+                      {addingWatchlist ? "Adicionando..." : "Adicionar à lista"}
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
             )}
           </>
         ) : (
