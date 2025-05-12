@@ -223,7 +223,7 @@ export const supabaseService = {
       const { data, error } = await supabase
         .from('comments')
         .select('*')
-        .filter(idField, 'eq', itemId)
+        .eq(idField, itemId)
         .order('created_at', { ascending: false });
 
       if (error) {
