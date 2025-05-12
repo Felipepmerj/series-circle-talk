@@ -32,6 +32,9 @@ interface Comment {
   profilePic?: string;
 }
 
+const INITIAL_COMMENTS_LIMIT = 4;
+const COMMENTS_PER_LOAD = 10;
+
 const FeedItem: React.FC<FeedItemProps> = ({
   userId,
   seriesId,
@@ -55,6 +58,8 @@ const FeedItem: React.FC<FeedItemProps> = ({
   const [loadingComments, setLoadingComments] = useState(false);
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [editedComment, setEditedComment] = useState("");
+  const [visibleComments, setVisibleComments] = useState<number>(INITIAL_COMMENTS_LIMIT);
+  const [loadingMoreComments, setLoadingMoreComments] = useState(false);
   const { user } = useAuth();
 
   useEffect(() => {
@@ -227,6 +232,10 @@ const FeedItem: React.FC<FeedItemProps> = ({
       toast.error("Erro ao remover comentário");
     }
   };
+
+  const handleLoadMoreComments = () => {
+    setVisibleComments(prev => prev + COMMENTS_PER_LOAD);
+  };
   
   if (loading || !series) {
     return <div className="p-4 border rounded-lg animate-pulse bg-muted/50 mb-4">Carregando...</div>;
@@ -293,7 +302,7 @@ const FeedItem: React.FC<FeedItemProps> = ({
         <div className="px-4 py-2 border-t bg-gray-50">
           <h4 className="text-sm font-medium mb-2">Comentários ({comments.length})</h4>
           <div className="space-y-3">
-            {comments.map(comment => (
+            {comments.slice(0, visibleComments).map(comment => (
               <div key={comment.id} className="flex items-start space-x-2">
                 <Avatar className="w-8 h-8">
                   <AvatarImage src={comment.profilePic} alt={comment.userName} />
@@ -361,6 +370,20 @@ const FeedItem: React.FC<FeedItemProps> = ({
               </div>
             ))}
           </div>
+          
+          {/* Load more comments button */}
+          {comments.length > visibleComments && (
+            <div className="mt-3 text-center">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleLoadMoreComments}
+                className="text-sm text-muted-foreground hover:text-foreground"
+              >
+                Ver mais {Math.min(COMMENTS_PER_LOAD, comments.length - visibleComments)} comentários
+              </Button>
+            </div>
+          )}
         </div>
       )}
       
