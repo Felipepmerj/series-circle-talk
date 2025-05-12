@@ -75,15 +75,13 @@ export const api = {
   // Get latest series (popular or on the air)
   getLatestSeries: async (page: number): Promise<Series[]> => {
     try {
-      // Using the 'discover' endpoint sorted by first air date in descending order
-      const today = new Date();
-      const currentDateFormatted = today.toISOString().split('T')[0]; // Format YYYY-MM-DD
-      const url = `${BASE_URL}/discover/tv?api_key=${API_KEY}&language=pt-BR&sort_by=first_air_date.desc&page=${page}&air_date.lte=${currentDateFormatted}`;
+      // Using the 'tv/popular' endpoint to get popular TV series
+      const url = `${BASE_URL}/tv/popular?api_key=${API_KEY}&language=pt-BR&page=${page}`;
       const response = await fetch(url);
       const data = await response.json();
 
       // Format the API response to match our Series type
- return data.results.map((item: any) => ({
+      return data.results.map((item: any) => ({
         id: item.id,
         name: item.name,
         overview: item.overview,
@@ -91,18 +89,19 @@ export const api = {
         poster_path: item.poster_path,
         backdrop_path: item.backdrop_path,
         vote_average: item.vote_average,
- genres: item.genre_ids ? item.genre_ids.map((id: number) => ({
- id,
- name: getGenreName(id)
- })) : [],
+        genres: item.genre_ids ? item.genre_ids.map((id: number) => ({
+          id,
+          name: getGenreName(id)
+        })) : [],
         number_of_episodes: item.number_of_episodes || 0,
         number_of_seasons: item.number_of_seasons || 0
       }));
     } catch (error) {
-      console.error("Error fetching latest series:", error);
-      throw error; // or return an empty array, depending on your error strategy
+      console.error("Error fetching popular series:", error);
+      throw error;
     }
   },
+
   // Get feed items (activity from friends)
   getFeedItems: async (): Promise<FeedItem[]> => {
     // This is now just a fallback since we're getting data from Supabase
