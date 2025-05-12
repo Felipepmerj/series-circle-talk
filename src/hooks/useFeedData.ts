@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { supabaseService } from "../services/supabaseService";
 import { api } from "../services/api";
@@ -50,32 +49,21 @@ export const useFeedData = () => {
         
         // Combine both types of items with proper type annotations to help TypeScript
         const combined = [
-          ...safeWatchedShows.map(item => ({...item, type: 'watched'})),
-          ...safeWatchlistItems.map(item => ({...item, type: 'watchlist'}))
+          ...safeWatchedShows.map(item => ({
+            ...item, 
+            type: 'watched',
+            sortTimestamp: item.last_activity || new Date(item.watched_at || item.created_at).getTime()
+          })),
+          ...safeWatchlistItems.map(item => ({
+            ...item, 
+            type: 'watchlist',
+            sortTimestamp: item.last_activity || new Date(item.created_at).getTime()
+          }))
         ];
         
         // Sort by timestamp (newest first)
         combined.sort((a, b) => {
-          // Handle different timestamp properties based on the item type
-          const timestampA = a.type === 'watched' 
- ? ('watched_at' in a ? a.watched_at : a.created_at)
- : a.created_at;
-
-          const timestampB = b.type === 'watched'
- ? ('watched_at' in b ? b.watched_at : b.created_at)
- : b.created_at;
-
-          // Use a nullish coalescing operator to handle undefined values safely
- const timeA = timestampA
- ? timestampA
- : // Provide a fallback if timestampA is null or undefined
- // Depending on your data, a very old date or the current time might be appropriate.
- // Using the current time as a fallback to avoid sorting issues with nulls.
- // Adjust this fallback as needed.
- new Date().toISOString();
-          const timeB = timestampB ?? '';
-          
-          return new Date(timeB).getTime() - new Date(timeA).getTime();
+          return b.sortTimestamp - a.sortTimestamp;
         });
         
         console.log("Feed hook: Total de itens combinados:", combined.length);
