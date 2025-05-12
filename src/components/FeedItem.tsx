@@ -20,6 +20,7 @@ interface FeedItemProps {
   watchlistItemId?: string;
   username?: string;
   seriesName?: string;
+  onCommentAdded?: () => void;
 }
 
 interface Comment {
@@ -39,7 +40,8 @@ const FeedItem: React.FC<FeedItemProps> = ({
   reviewId,
   watchlistItemId,
   username,
-  seriesName
+  seriesName,
+  onCommentAdded
 }) => {
   const [series, setSeries] = useState<Series | null>(null);
   const [loading, setLoading] = useState(true);
@@ -166,6 +168,9 @@ const FeedItem: React.FC<FeedItemProps> = ({
         } else if (type === 'added-to-watchlist' && watchlistItemId) {
           await fetchComments(watchlistItemId, 'watchlist_item_id');
         }
+        
+        // Notify parent component to refresh the feed
+        onCommentAdded?.();
       }
       
       toast.success("Comentário adicionado com sucesso!");
