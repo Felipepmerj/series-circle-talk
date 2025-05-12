@@ -22,7 +22,7 @@ interface FeedActivity {
   username?: string;
 }
 
-const ITEMS_PER_PAGE = 5; // Number of items to load per batch
+const ITEMS_PER_PAGE = 10; // Number of items to load per batch
 
 const Index: React.FC = () => {
   const [feedItems, setFeedItems] = useState<FeedActivity[]>([]);
