@@ -509,7 +509,7 @@ const SeriesDetail: React.FC = () => {
                         <div className="flex items-center">
                           <RatingStars rating={averageRating.rating} />
                           <span className="ml-2 text-sm text-muted-foreground">
-                            {averageRating.rating.toFixed(1)}/10 ({averageRating.count} {averageRating.count === 1 ? 'avaliação' : 'avaliações'})
+                            {averageRating.count} {averageRating.count === 1 ? 'avaliação' : 'avaliações'})
                           </span>
                         </div>
                       </div>
