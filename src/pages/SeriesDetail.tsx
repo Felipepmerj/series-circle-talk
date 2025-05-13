@@ -521,7 +521,7 @@ const SeriesDetail: React.FC = () => {
                         <div className="flex items-center">
                           <RatingStars rating={userRating} />
                           <span className="ml-2 text-sm text-muted-foreground">
-                            {userRating.toFixed(1)}/10
+                            
                           </span>
                         </div>
                       </div>
