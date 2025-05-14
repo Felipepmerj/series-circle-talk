@@ -65,18 +65,12 @@ const Register = () => {
         throw error;
       }
       
-      // Após o cadastro, fazer login automático
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: formData.email,
-        password: formData.password
-      });
+      // Informar o usuário para confirmar o e-mail
+      toast.info("Por favor, confirme seu e-mail para fazer login.");
       
-      if (signInError) {
-        throw signInError;
-      }
-      
-      toast.success("Cadastro realizado com sucesso!");
-      navigate("/");
+      // Redirecionar para a página de login após o cadastro bem-sucedido
+      toast.success("Cadastro realizado com sucesso! Agora faça login.");
+ navigate("/auth");
       
     } catch (error: any) {
       console.error("Registration error:", error);
